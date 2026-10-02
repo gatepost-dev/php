@@ -53,13 +53,6 @@ final class CheckCommitMsgTest extends TestCase
                     self::SIGN_OFF,
                 ),
             ],
-            'a co-author line for a person who works at an AI company' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-authored-by: Jane Doe <jane.doe@anthropic.com>',
-                    self::SIGN_OFF,
-                ),
-            ],
         ];
     }
 
@@ -92,62 +85,42 @@ final class CheckCommitMsgTest extends TestCase
                 self::message(self::SUBJECT, 'Signed-off-by: Ada Lovelace'),
                 'Signed-off-by',
             ],
-            'a co-author line for Claude' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-Authored-By: Claude <noreply@anthropic.com>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
-            'a co-author line with the address of Claude and another name' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-authored-by: Assistant <noreply@anthropic.com>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
-            'a co-author line for Copilot' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
-            'a co-author line for Codex' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-authored-by: Codex <codex@openai.com>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
-            'a co-author line for Cursor' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-authored-by: Cursor Agent <cursoragent@cursor.com>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
-            'a co-author line for Aider' => [
-                self::message(
-                    self::SUBJECT,
-                    'Co-authored-by: aider (gpt-4o) <noreply@aider.chat>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
-            'a co-author line in lower case' => [
-                self::message(
-                    self::SUBJECT,
-                    'co-authored-by: claude <noreply@anthropic.com>',
-                    self::SIGN_OFF,
-                ),
-                'Co-Authored-By',
-            ],
+            'a co-author line for Claude' => self::coAuthorRefused(
+                'Co-Authored-By: Claude <noreply@anthropic.com>',
+            ),
+            'a co-author line with the address of Claude and another name' => self::coAuthorRefused(
+                'Co-authored-by: Assistant <noreply@anthropic.com>',
+            ),
+            'a co-author line for Copilot' => self::coAuthorRefused(
+                'Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>',
+            ),
+            'a co-author line for Codex' => self::coAuthorRefused(
+                'Co-authored-by: Codex <codex@openai.com>',
+            ),
+            'a co-author line at the domain of Anthropic' => self::coAuthorRefused(
+                'Co-authored-by: Claude <claude@anthropic.com>',
+            ),
+            'a co-author line at the domain of OpenAI' => self::coAuthorRefused(
+                'Co-authored-by: Assistant <assistant@openai.com>',
+            ),
+            'a co-author line for Copilot at github.com' => self::coAuthorRefused(
+                'Co-authored-by: Copilot <copilot@github.com>',
+            ),
+            'a co-author line for Claude Code at GitHub' => self::coAuthorRefused(
+                'Co-authored-by: Claude Code <claude-code@users.noreply.github.com>',
+            ),
+            'a co-author line for Gemini Code Assist' => self::coAuthorRefused(
+                'Co-authored-by: Gemini <gemini-code-assist@google.com>',
+            ),
+            'a co-author line for Cursor' => self::coAuthorRefused(
+                'Co-authored-by: Cursor Agent <cursoragent@cursor.com>',
+            ),
+            'a co-author line for Aider' => self::coAuthorRefused(
+                'Co-authored-by: aider (gpt-4o) <noreply@aider.chat>',
+            ),
+            'a co-author line in lower case' => self::coAuthorRefused(
+                'co-authored-by: claude <noreply@anthropic.com>',
+            ),
         ];
     }
 
@@ -159,6 +132,14 @@ final class CheckCommitMsgTest extends TestCase
 
         self::assertSame(1, $run->exitCode);
         self::assertStringContainsString($reason, $run->output);
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private static function coAuthorRefused(string $trailer): array
+    {
+        return [self::message(self::SUBJECT, $trailer, self::SIGN_OFF), 'Co-Authored-By'];
     }
 
     private static function message(string $subject, string ...$trailers): string
