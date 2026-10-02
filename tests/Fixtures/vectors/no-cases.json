@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "function": "stateName",
+  "description": "A small vector file for the loader tests.",
+  "cases": []
+}

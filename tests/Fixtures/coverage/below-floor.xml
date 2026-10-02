@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- The tests cover 47 of 50 branches, which is 94 % and below the floor. -->
+<coverage line-rate="1" branch-rate="0.94" lines-covered="90" lines-valid="90"
+    branches-covered="47" branches-valid="50" complexity="30" version="0.4" timestamp="1">
+  <packages>
+    <package name="Covered.php" line-rate="1" branch-rate="0.94" complexity="30">
+      <classes>
+        <class name="Gatepost\Postcode\Covered" filename="Covered.php"
+            line-rate="1" branch-rate="0.94" complexity="30"/>
+      </classes>
+    </package>
+  </packages>
+</coverage>

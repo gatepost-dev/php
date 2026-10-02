@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- PHPUnit ran without path coverage, so the report counts lines and zero branches. -->
+<coverage line-rate="1" branch-rate="0" lines-covered="10" lines-valid="10"
+    branches-covered="0" branches-valid="0" complexity="2" version="0.4" timestamp="1">
+  <packages>
+    <package name="Covered.php" line-rate="1" branch-rate="0" complexity="2">
+      <classes>
+        <class name="Gatepost\Postcode\Covered" filename="Covered.php"
+            line-rate="1" branch-rate="0" complexity="2"/>
+      </classes>
+    </package>
+  </packages>
+</coverage>

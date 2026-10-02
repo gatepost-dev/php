@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "maxInputCodePoints": 64,
+  "segments": [
+    { "name": "state", "length": 2, "characters": "letters" },
+    { "name": "lga", "length": 2, "characters": "digits", "minimum": 1 }
+  ],
+  "legacyPattern": "^[0-9]{6}$",
+  "separators": ["U+0020", "U+002D"],
+  "suggestions": {
+    "digits": { "O": "0", "I": "1", "L": "1" },
+    "letters": { "0": "O", "1": "I" }
+  }
+}

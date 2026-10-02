@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- The source holds a class with constants only, so no line and no branch exists. -->
+<coverage line-rate="0" branch-rate="0" lines-covered="0" lines-valid="0"
+    branches-covered="0" branches-valid="0" complexity="0" version="0.4" timestamp="1">
+  <packages>
+    <package name="Constants.php" line-rate="0" branch-rate="0" complexity="0">
+      <classes>
+        <class name="Gatepost\Postcode\Constants" filename="Constants.php"
+            line-rate="0" branch-rate="0" complexity="0"/>
+      </classes>
+    </package>
+  </packages>
+</coverage>

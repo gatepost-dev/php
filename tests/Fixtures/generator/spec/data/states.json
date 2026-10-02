@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "source": "A small data set for the generator tests.",
+  "states": [
+    { "code": "EK", "name": "Ekiti", "iso": "NG-EK" },
+    { "code": "LA", "name": "Lagos", "iso": "NG-LA" }
+  ]
+}

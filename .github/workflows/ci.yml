@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # Each download has a SHA-256 sum. Renovate moves only the version, so a new version fails
+      # the sum check until a person writes the new sum.
+      # renovate: depName=miniscruff/changie
+      CHANGIE_VERSION: 1.26.0
+      CHANGIE_SHA256: eab168c8287a6e91912e1c02e5260911232d945bfd3c89d8a0e1ace6bb7b6161
+      # renovate: depName=gitleaks/gitleaks
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The API check reads the release tags, and gitleaks reads the whole history.
+          fetch-depth: 0
+          submodules: true
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          coverage: xdebug
+          # Composer requires ext-intl to install the BC tool. The package does not need it, as
+          # the tests job shows.
+          extensions: intl
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # composer check starts reuse and zizmor with uvx. The tools are small, and no lock file
+          # keys a cache.
+          enable-cache: false
+      - name: Install changie and gitleaks
+        working-directory: ${{ runner.temp }}
+        run: |
+          changie_archive="changie_${CHANGIE_VERSION}_linux_amd64.tar.gz"
+          gitleaks_archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "https://github.com/miniscruff/changie/releases/download/v${CHANGIE_VERSION}/${changie_archive}"
+          curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${gitleaks_archive}"
+          echo "$CHANGIE_SHA256  $changie_archive" | sha256sum -c -
+          echo "$GITLEAKS_SHA256  $gitleaks_archive" | sha256sum -c -
+          mkdir bin
+          tar -xzf "$changie_archive" -C bin changie
+          tar -xzf "$gitleaks_archive" -C bin gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: composer install --no-interaction --no-progress
+      - run: composer --working-dir=tools/bc-check install --no-interaction --no-progress
+      - run: composer check
+
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest PHP that the package supports, and the newest release.
+        php: ['8.1', '8.5']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          # The package must run without ext-intl (PHP-9).
+          extensions: :intl
+      - name: Check that ext-intl is off
+        run: |
+          php -r 'exit(extension_loaded("intl") ? 1 : 0);'
+      - run: composer install --no-interaction --no-progress
+      - name: Use the newest PHPUnit on the newest PHP
+        if: matrix.php != '8.1'
+        run: |
+          composer config --unset platform.php
+          composer update --no-interaction --no-progress --with-all-dependencies phpunit/phpunit
+      # GenerateDataTest reads the UnicodeData.txt that this command downloads and checks. It also
+      # checks that the generated classes match the spec data on this PHP version.
+      - run: composer generate:check
+      - run: composer test
+      # The dev packages include polyfills of ext-intl, which could hide a call to an intl
+      # function. This step leaves them out of the autoloader and runs the quickstart. The job
+      # keeps ext-mbstring, because PHPUnit needs it, so PortabilityTest checks those names.
+      - name: Run the quickstart without the dev packages
+        run: |
+          composer dump-autoload --no-dev
+          php -r '
+            require "vendor/autoload.php";
+            echo Gatepost\Postcode\Postcode::parse("ek 01 a03 fk 01")->value->canonical;
+          ' | grep -x 'EK-01-A03-FK-01'

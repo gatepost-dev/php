@@ -1,0 +1,9 @@
+version = 1
+
+[[annotations]]
+path = [
+  "**/*.md", "**/*.json", "**/composer.lock", ".gitmodules", ".changes/**", "NOTICE",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The Gatepost authors"
+SPDX-License-Identifier = "Apache-2.0"

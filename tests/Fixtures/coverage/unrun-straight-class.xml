@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- All counted branches are covered, but a class that has code and no covered line fails. Its one
+    method has no branch, so its complexity is 1, the least that a method has. PHPUnit did not load
+    the class, so it counts the lines of the class and none of its branches. -->
+<coverage line-rate="0.8" branch-rate="1" lines-covered="8" lines-valid="10"
+    branches-covered="3" branches-valid="3" complexity="3" version="0.4" timestamp="1">
+  <packages>
+    <package name="Covered.php" line-rate="1" branch-rate="1" complexity="2">
+      <classes>
+        <class name="Gatepost\Postcode\Covered" filename="Covered.php"
+            line-rate="1" branch-rate="1" complexity="2"/>
+      </classes>
+    </package>
+    <package name="Straight.php" line-rate="0" branch-rate="0" complexity="1">
+      <classes>
+        <class name="Gatepost\Postcode\Straight" filename="Straight.php"
+            line-rate="0" branch-rate="0" complexity="1"/>
+      </classes>
+    </package>
+  </packages>
+</coverage>

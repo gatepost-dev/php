@@ -1,0 +1,17 @@
+{
+  "packages": [
+    { "name": "example/mit", "version": "1.0.0", "license": ["MIT"] },
+    { "name": "example/isc", "version": "1.0.0", "license": ["ISC"] },
+    { "name": "example/apache", "version": "1.0.0", "license": ["Apache-2.0"] },
+    { "name": "example/bsd-2", "version": "1.0.0", "license": ["BSD-2-Clause"] },
+    { "name": "example/bsd-3", "version": "1.0.0", "license": ["BSD-3-Clause"] },
+    { "name": "example/zero-bsd", "version": "1.0.0", "license": ["0BSD"] },
+    { "name": "example/blue-oak", "version": "1.0.0", "license": ["BlueOak-1.0.0"] },
+    { "name": "example/cc0", "version": "1.0.0", "license": ["CC0-1.0"] },
+    { "name": "example/python", "version": "1.0.0", "license": ["Python-2.0"] }
+  ],
+  "packages-dev": [
+    { "name": "example/dual", "version": "2.0.0", "license": ["GPL-3.0-only", "MIT"] },
+    { "name": "example/or-text", "version": "v3.0.0", "license": ["(GPL-2.0-only or Apache-2.0)"] }
+  ]
+}
