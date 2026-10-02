@@ -15,9 +15,21 @@ use RuntimeException;
 const UNICODE_VERSION = '17.0.0';
 const UNICODE_DATA_URL = 'https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt';
 const UNICODE_DATA_SHA256 = '2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c';
+// The Unicode licence asks that its notice stay with copies of the data, and the table is one.
+// So the header of NfkcTable.php also names Unicode, Inc. as a copyright holder. The years are
+// the ones on https://www.unicode.org/license.txt. Inside this script, the tags end in a quote
+// and a comma, so REUSE rejects them unless it skips them.
+// REUSE-IgnoreStart
+const UNICODE_TAGS = [
+    '// SPDX-FileCopyrightText: 2026 The Gatepost authors',
+    '// SPDX-FileCopyrightText: 1991-2026 Unicode, Inc.',
+    '// SPDX-License-Identifier: Apache-2.0 AND Unicode-3.0',
+];
+// REUSE-IgnoreEnd
 
 // The download is kept in build/, which git ignores. The hash pins the exact file, so a
-// changed or partial download fails.
+// changed or partial download fails. A download goes into the cache only after it passes the
+// hash. Otherwise a partial download would stay there and fail each later run.
 function unicodeData(string $root): string
 {
     $path = "{$root}/build/unicode/UnicodeData-" . UNICODE_VERSION . '.txt';
@@ -26,19 +38,33 @@ function unicodeData(string $root): string
         if ($downloaded === false) {
             throw new RuntimeException('Cannot download ' . UNICODE_DATA_URL);
         }
+        if (!hasPinnedHash($downloaded)) {
+            throw new RuntimeException(
+                'The download from ' . UNICODE_DATA_URL . ' does not match its SHA-256 hash. '
+                . 'The generator did not cache it. Run it again.',
+            );
+        }
         writeFile($path, $downloaded);
     }
     $contents = \file_get_contents($path);
-    if ($contents === false || \hash('sha256', $contents) !== UNICODE_DATA_SHA256) {
+    if ($contents === false || !hasPinnedHash($contents)) {
         throw new RuntimeException("{$path} does not match its SHA-256 hash. Delete it and retry.");
     }
 
     return $contents;
 }
 
+function hasPinnedHash(string $unicodeData): bool
+{
+    return \hash('sha256', $unicodeData) === UNICODE_DATA_SHA256;
+}
+
 // A character goes into the table when its full compatibility decomposition holds only ASCII
-// characters and separators. For such a character, the decomposition is also its NFKC form,
-// because no ASCII character and no separator composes with another character.
+// characters and separators. None of them is a combining mark, so nothing in the decomposition
+// composes, and the decomposition is also the NFKC form of the character. A combining mark
+// next to a table character can compose with it in full NFKC, such as A with U+0300. The
+// result is not ASCII. The table leaves the mark in place, and the mark is not ASCII either.
+// So parse rejects both results.
 /**
  * @param list<int> $separators
  *
@@ -112,6 +138,7 @@ function nfkcTable(string $unicodeData, array $separators): string
     ];
     $summary = 'NFKC forms for strtr(). The table leaves out each character that no '
         . 'postcode can hold.';
+    $header = fileHeader('UnicodeData.txt ' . UNICODE_VERSION, UNICODE_TAGS);
 
-    return classFile('UnicodeData.txt ' . UNICODE_VERSION, $summary, 'NfkcTable', $constants);
+    return classFile($header, $summary, 'NfkcTable', $constants);
 }

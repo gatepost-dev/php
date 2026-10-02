@@ -179,8 +179,9 @@ function specData(string $root, array $format, array $separators): string
         ...constantLines('Typo fixes in letter segments.', 'LETTER_FIXES', $letterFixes),
     ];
     $summary = 'The values in the JSON files in spec/data.';
+    $header = fileHeader('spec/data', GATEPOST_TAGS);
 
-    return classFile('spec/data', $summary, 'SpecData', $constants);
+    return classFile($header, $summary, 'SpecData', $constants);
 }
 
 function legacyPattern(mixed $pattern): string

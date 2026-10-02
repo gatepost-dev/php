@@ -3,3 +3,6 @@ Copyright 2026 The Gatepost authors
 
 This product is unofficial. The Nigerian Postal Service (NIPOST) did not make it and does not endorse it.
 Gatepost uses the name NIPOST only to describe compatibility with NIPOST's National Digital Postcode.
+
+The file src/Internal/NfkcTable.php holds data from UnicodeData.txt, a file of the Unicode Character Database 17.0.0. Copyright 1991-2026 Unicode, Inc.
+The Unicode License v3 (SPDX identifier Unicode-3.0) covers this data. LICENSES/Unicode-3.0.txt holds the licence text.

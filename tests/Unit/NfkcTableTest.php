@@ -60,6 +60,27 @@ final class NfkcTableTest extends TestCase
     }
 
     #[Test]
+    public function changesMathematicalBoldLettersAndDigitsToAscii(): void
+    {
+        // Both characters lie above U+FFFF, so their keys take 4 bytes in UTF-8.
+        self::assertSame('E1', Postcode::normalize("\u{1D404}\u{1D7CF}"));
+    }
+
+    #[Test]
+    public function namesTheUnicodeDataInTheNotice(): void
+    {
+        $notice = \file_get_contents(\dirname(__DIR__, 2) . '/NOTICE');
+        self::assertIsString($notice);
+
+        self::assertStringContainsString('src/Internal/NfkcTable.php', $notice);
+        self::assertStringContainsString(
+            'Unicode Character Database ' . NfkcTable::UNICODE_VERSION,
+            $notice,
+        );
+        self::assertStringContainsString('Unicode-3.0', $notice);
+    }
+
+    #[Test]
     public function keepsACharacterWhoseNfkcFormHasOtherLetters(): void
     {
         // NFKC changes the micro sign U+00B5 to the Greek letter mu U+03BC. Neither can be part

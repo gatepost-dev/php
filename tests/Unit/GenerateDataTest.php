@@ -8,73 +8,16 @@ declare(strict_types=1);
 namespace Gatepost\Postcode\Tests\Unit;
 
 use Closure;
-use FilesystemIterator;
-use Gatepost\Postcode\Tests\ScriptRun;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
 
 /**
  * composer check runs the generator on the real data only, so it never meets a stale class, a bad
- * argument or a broken data file. The generator takes its root from __DIR__, so each test copies
- * scripts/ and the small data set in tests/Fixtures/generator into a temporary root and runs the
- * copy there. The generator also reads the UnicodeData.txt that composer generate cached in
- * build/unicode, so each test copies that file too. No test uses the network. A data provider
- * row holds a closure that changes the files under that root.
+ * argument or a broken data file. These tests give it each of them. A data provider row holds a
+ * closure that changes the files under the temporary root of GeneratorTestCase.
  */
-final class GenerateDataTest extends TestCase
+final class GenerateDataTest extends GeneratorTestCase
 {
-    private const SPEC_DATA = 'src/Internal/SpecData.php';
-    private const NFKC_TABLE = 'src/Internal/NfkcTable.php';
-    private const GENERATED = [self::SPEC_DATA, self::NFKC_TABLE];
-    // grammar.md names Unicode 17.0 as the NFKC baseline. A table must come from that version.
-    private const UNICODE_VERSION = '17.0.0';
-    private const UNICODE_DATA = 'build/unicode/UnicodeData-' . self::UNICODE_VERSION . '.txt';
-
-    private string $root;
-
-    protected function setUp(): void
-    {
-        $root = \tempnam(\sys_get_temp_dir(), 'gatepost-generator-');
-        self::assertIsString($root);
-        \unlink($root);
-        $this->root = $root;
-        self::copyFiles(\dirname(__DIR__, 2) . '/scripts/*.php', "{$root}/scripts");
-        self::copyFiles(
-            \dirname(__DIR__) . '/Fixtures/generator/spec/data/*.json',
-            "{$root}/spec/data",
-        );
-        $cached = \dirname(__DIR__, 2) . '/' . self::UNICODE_DATA;
-        self::assertFileExists(
-            $cached,
-            'The cached UnicodeData.txt is missing. Run composer generate first. It downloads '
-            . 'the file into build/unicode.',
-        );
-        self::copyFiles($cached, "{$root}/build/unicode");
-    }
-
-    protected function tearDown(): void
-    {
-        $items = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST,
-        );
-        foreach ($items as $item) {
-            if (!$item instanceof SplFileInfo) {
-                continue;
-            }
-            if ($item->isDir()) {
-                \rmdir($item->getPathname());
-            } else {
-                \unlink($item->getPathname());
-            }
-        }
-        \rmdir($this->root);
-    }
-
     #[Test]
     public function writesTheClassesFromTheDataThatTheCheckAccepts(): void
     {
@@ -214,6 +157,20 @@ final class GenerateDataTest extends TestCase
                 self::edit($format, $letters, '"letters": { "O": "0" }'),
                 'spec/data/format.json: suggestions.letters has the fix O => 0',
             ],
+            // The row above breaks both halves of a letter fix, so it cannot show that each half
+            // is checked. Each of the next three rows breaks one half.
+            'a letter segment fix that writes another digit' => [
+                self::edit($format, $letters, '"letters": { "0": "1" }'),
+                'spec/data/format.json: suggestions.letters has the fix 0 => 1',
+            ],
+            'a letter segment fix that changes a letter' => [
+                self::edit($format, $letters, '"letters": { "O": "A" }'),
+                'spec/data/format.json: suggestions.letters has the fix O => A',
+            ],
+            'a digit segment fix that changes a digit' => [
+                self::edit($format, $digits, '"digits": { "0": "1" }'),
+                'spec/data/format.json: suggestions.digits has the fix 0 => 1',
+            ],
             'a fix table that is not an object' => [
                 self::edit($format, $digits, '"digits": "none"'),
                 'spec/data/format.json: suggestions.digits must be an object with at least one '
@@ -307,72 +264,5 @@ final class GenerateDataTest extends TestCase
         self::assertNotNull($class);
         // PHP throws a ParseError here when the class has a syntax error.
         self::assertNotSame([], \token_get_all($class, TOKEN_PARSE));
-    }
-
-    private function generate(string ...$arguments): ScriptRun
-    {
-        return ScriptRun::of(
-            \PHP_BINARY,
-            '-d',
-            'display_errors=1',
-            "{$this->root}/scripts/generate-data.php",
-            ...$arguments,
-        );
-    }
-
-    /**
-     * @return array<string, string> The written classes by path. A class that the root lacks has
-     *                               no entry.
-     */
-    private function generatedClasses(): array
-    {
-        $classes = [];
-        foreach (self::GENERATED as $path) {
-            $file = "{$this->root}/{$path}";
-            if (!\is_file($file)) {
-                continue;
-            }
-            $class = \file_get_contents($file);
-            self::assertIsString($class);
-            $classes[$path] = $class;
-        }
-
-        return $classes;
-    }
-
-    /**
-     * @return Closure(string): void Changes text in a file under the temporary root.
-     */
-    private static function edit(string $file, string $search, string $replacement): Closure
-    {
-        return static function (string $root) use ($file, $search, $replacement): void {
-            $text = \file_get_contents("{$root}/{$file}");
-            self::assertIsString($text);
-            self::assertStringContainsString($search, $text, "{$file} lacks the text.");
-            self::assertNotFalse(
-                \file_put_contents("{$root}/{$file}", \str_replace($search, $replacement, $text)),
-            );
-        };
-    }
-
-    /**
-     * @return Closure(string): void Removes a file under the temporary root.
-     */
-    private static function delete(string $file): Closure
-    {
-        return static function (string $root) use ($file): void {
-            \unlink("{$root}/{$file}");
-        };
-    }
-
-    private static function copyFiles(string $pattern, string $folder): void
-    {
-        $files = \glob($pattern);
-        self::assertIsArray($files);
-        self::assertNotSame([], $files, "{$pattern} matches no file.");
-        \mkdir($folder, 0o777, true);
-        foreach ($files as $file) {
-            \copy($file, "{$folder}/" . \basename($file));
-        }
     }
 }
