@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "source": "A small data set for the generator tests.",
+  "thresholds": [
+    { "maxAccuracyM": 8, "precision": "unit" },
+    { "maxAccuracyM": 20, "precision": "area" }
+  ],
+  "fallback": "lga"
+}

@@ -13,15 +13,27 @@ namespace Gatepost\Postcode\Scripts;
 use RuntimeException;
 
 const DATA_VERSION = 1;
+const FORMAT_FILE = 'spec/data/format.json';
+const PRECISION_FILE = 'spec/data/precision.json';
+const STATES_FILE = 'spec/data/states.json';
 const PRECISIONS = ['state', 'lga', 'district', 'area', 'unit'];
 const CHARACTER_RULES = ['letters', 'digits', 'letters-or-digits'];
+// A fix table for digit segments changes letters to digits, and a table for letter segments
+// changes digits to letters. This pair gives the characters that a fix changes, then the
+// characters that it writes. The check reads the characters, not the JSON type, because PHP
+// decodes the object {"0": "O"} into the same array as the list ["O"].
+const FIX_CHARACTERS = [
+    'digits' => ['[A-Z]', '[0-9]'],
+    'letters' => ['[0-9]', '[A-Z]'],
+];
 
 /**
  * @return array<mixed>
  */
 function readJson(string $path): array
 {
-    $text = \file_get_contents($path);
+    // A missing file gives false here, so the clear message below replaces a PHP warning.
+    $text = \is_file($path) ? \file_get_contents($path) : false;
     if ($text === false) {
         throw new RuntimeException("Cannot read {$path}. Run git submodule update --init.");
     }
@@ -85,7 +97,8 @@ function choice(mixed $value, array $choices, string $where): string
 }
 
 // A label such as "U+2013" names one code point. A label of another shape would give a wrong
-// table and no error, so it throws.
+// table and no error, so it throws. A label above U+10FFFF writes a class that does not parse,
+// and a surrogate writes a key that no well-formed text can match.
 /**
  * @return list<int>
  */
@@ -97,10 +110,21 @@ function separatorCodePoints(mixed $labels): array
 
     return \array_map(static function (mixed $label): int {
         if (!\is_string($label) || \preg_match('/\AU\+([0-9A-F]{4,6})\z/', $label, $hex) !== 1) {
-            throw new RuntimeException('Write each separator as U+ and 4 to 6 hex digits.');
+            throw new RuntimeException(
+                FORMAT_FILE . ': each separator must be written as U+ and 4 to 6 hex digits, '
+                . 'but it is ' . \json_encode($label, JSON_THROW_ON_ERROR) . '.',
+            );
+        }
+        $codePoint = \intval($hex[1], 16);
+        $isSurrogate = $codePoint >= 0xD800 && $codePoint <= 0xDFFF;
+        if ($codePoint > 0x10FFFF || $isSurrogate) {
+            throw new RuntimeException(
+                FORMAT_FILE . ": the separator {$label} must be a code point from U+0000 to "
+                . 'U+10FFFF that is not a surrogate.',
+            );
         }
 
-        return \intval($hex[1], 16);
+        return $codePoint;
     }, $labels);
 }
 
@@ -110,7 +134,7 @@ function separatorCodePoints(mixed $labels): array
  */
 function specData(string $root, array $format, array $separators): string
 {
-    $precision = readJson("{$root}/spec/data/precision.json");
+    $precision = readJson("{$root}/" . PRECISION_FILE);
     $limit = wholeNumber($format['maxInputCodePoints'] ?? null, 'maxInputCodePoints');
     $fallback = choice($precision['fallback'] ?? null, PRECISIONS, 'fallback');
     $digitFixes = fixes($format, 'digits');
@@ -174,7 +198,7 @@ function legacyPattern(mixed $pattern): string
  */
 function stateEntries(string $root): array
 {
-    $states = readJson("{$root}/spec/data/states.json")['states'] ?? null;
+    $states = readJson("{$root}/" . STATES_FILE)['states'] ?? null;
 
     return \array_map(static function (array $state): string {
         $code = quoted(text($state['code'] ?? null, 'state code'));
@@ -214,23 +238,36 @@ function segmentEntries(mixed $segments): array
  */
 function thresholdEntries(mixed $thresholds): array
 {
-    return \array_map(static function (array $threshold): string {
+    $entries = [];
+    $previous = null;
+    foreach (objects($thresholds, 'thresholds') as $threshold) {
         $limit = $threshold['maxAccuracyM'] ?? null;
         if (!\is_int($limit) && !\is_float($limit)) {
             throw new RuntimeException('maxAccuracyM must be a number.');
         }
+        // precisionForAccuracy returns the first limit that covers an accuracy, so a limit that
+        // does not rise above the one before it would never apply.
+        if ($previous !== null && $limit <= $previous) {
+            throw new RuntimeException(
+                PRECISION_FILE . ": the limit {$limit} must be above the limit {$previous}. "
+                . 'List the limits from the lowest to the highest.',
+            );
+        }
+        $previous = $limit;
         $precision = choice($threshold['precision'] ?? null, PRECISIONS, 'threshold precision');
-
-        return ENTRY . \sprintf(
+        $entries[] = ENTRY . \sprintf(
             "['maxAccuracyM' => %s, 'precision' => %s],",
             \json_encode($limit, JSON_THROW_ON_ERROR),
             quoted($precision),
         );
-    }, objects($thresholds, 'thresholds'));
+    }
+
+    return $entries;
 }
 
 /**
  * @param array<mixed> $format
+ * @param 'digits'|'letters' $kind
  *
  * @return list<string>
  */
@@ -239,13 +276,28 @@ function fixes(array $format, string $kind): array
     $suggestions = $format['suggestions'] ?? null;
     $fixes = \is_array($suggestions) ? ($suggestions[$kind] ?? null) : null;
     if (!\is_array($fixes) || $fixes === []) {
-        throw new RuntimeException("suggestions.{$kind} must hold at least one fix.");
+        throw new RuntimeException(
+            FORMAT_FILE . ": suggestions.{$kind} must be an object with at least one fix, "
+            . 'but it is ' . \json_encode($fixes, JSON_THROW_ON_ERROR) . '.',
+        );
     }
+    [$changed, $written] = FIX_CHARACTERS[$kind];
     $entries = [];
     foreach ($fixes as $from => $to) {
-        // PHP turns the key "0" into the integer 0, so the cast restores the text.
-        $from = quoted(text((string) $from, 'fix'));
-        $entries[] = ENTRY . "{$from} => " . quoted(text($to, 'fix')) . ',';
+        // PHP turns the key "0" into the integer 0, so the cast restores the text. At run time
+        // the key is the integer 0 again, so code that reads the table must use strtr() or cast
+        // the keys.
+        $from = text((string) $from, 'fix');
+        $to = text($to, 'fix');
+        $isFix = \preg_match("/\A{$changed}\z/", $from) === 1
+            && \preg_match("/\A{$written}\z/", $to) === 1;
+        if (!$isFix) {
+            throw new RuntimeException(
+                FORMAT_FILE . ": suggestions.{$kind} has the fix {$from} => {$to}. "
+                . "A key must match {$changed} and a value must match {$written}.",
+            );
+        }
+        $entries[] = ENTRY . quoted($from) . ' => ' . quoted($to) . ',';
     }
 
     return $entries;

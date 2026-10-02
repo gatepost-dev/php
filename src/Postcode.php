@@ -43,7 +43,7 @@ final class Postcode
 
     /**
      * Returns the most precise segment that a GPS fix of this accuracy supports. Each limit
-     * in the spec is inclusive, so a fix of exactly 8 m supports the unit.
+     * in the spec is inclusive, so a fix equal to a limit gets the precision of that limit.
      *
      * ```php
      * Postcode::precisionForAccuracy(35.0); // Precision::District
@@ -54,9 +54,10 @@ final class Postcode
      */
     public static function precisionForAccuracy(?float $accuracyM): Precision
     {
-        if ($accuracyM === null || !\is_finite($accuracyM) || $accuracyM < 0) {
+        if ($accuracyM === null || $accuracyM < 0) {
             return Precision::from(SpecData::PRECISION_FALLBACK);
         }
+        // NaN and positive infinity fail every comparison below, so they reach the fallback.
         foreach (SpecData::PRECISION_THRESHOLDS as $threshold) {
             if ($accuracyM <= $threshold['maxAccuracyM']) {
                 return Precision::from($threshold['precision']);

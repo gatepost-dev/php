@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "function": "stateName",
+  "description": "A small vector file for the loader tests.",
+  "cases": [
+    {
+      "id": "a b",
+      "description": "c",
+      "input": "EK",
+      "options": {},
+      "expect": {
+        "value": "Ekiti"
+      }
+    },
+    {
+      "id": "a",
+      "description": "b c",
+      "input": "XX",
+      "options": {},
+      "expect": {
+        "value": null
+      }
+    }
+  ]
+}
