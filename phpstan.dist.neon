@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+includes:
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-phpunit/rules.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: max
+    # The package supports PHP 8.1 and every later release.
+    phpVersion:
+        min: 80100
+        max: 80599
+    paths:
+        - scripts
+        - src
+        - tests
+    tmpDir: build/phpstan

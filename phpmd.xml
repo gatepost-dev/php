@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<ruleset name="gatepost"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd">
+    <description>Size and complexity limits from php.md, for TELL-2 and TELL-3.</description>
+    <!-- The generator writes these files. Their length is data, not logic. -->
+    <exclude-pattern>src/Internal/NfkcTable.php</exclude-pattern>
+    <exclude-pattern>src/Internal/SpecData.php</exclude-pattern>
+    <!-- PHPMD reports a value at or above each threshold. -->
+    <rule ref="rulesets/codesize.xml">
+        <exclude name="CyclomaticComplexity"/>
+        <exclude name="ExcessiveParameterList"/>
+    </rule>
+    <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
+        <properties>
+            <property name="reportLevel" value="10"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="5"/>
+        </properties>
+    </rule>
+</ruleset>

@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+# Packagist builds each release from a git archive. These paths stay out of it.
+/.changes export-ignore
+/.changie.yaml export-ignore
+/.editorconfig export-ignore
+/.gitattributes export-ignore
+/.github export-ignore
+/.gitignore export-ignore
+/.gitmodules export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/CODING_STANDARDS.md export-ignore
+/CONTEXT.md export-ignore
+/REUSE.toml export-ignore
+/docs export-ignore
+/infection.json5 export-ignore
+/phpmd.xml export-ignore
+/phpstan.dist.neon export-ignore
+/phpunit.xml.dist export-ignore
+/scripts export-ignore
+/spec export-ignore
+/tests export-ignore
+/tools export-ignore

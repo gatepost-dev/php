@@ -1,0 +1,11 @@
+{
+    "require-dev": {
+        "roave/backward-compatibility-check": "^8.23.0"
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.1"
+        },
+        "sort-packages": true
+    }
+}

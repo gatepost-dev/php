@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+# Checks one commit message: a Conventional Commits subject with a scope (GIT-1), then the
+# agent tells that check-tells finds (TELL-14, TELL-18). The commit-msg hook and CI run it.
+set -euo pipefail
+
+types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
+scopes='core|client|repo|deps|release'
+subject="$(sed -n '/^[^#[:space:]]/{p;q;}' "$1")"
+if ! printf '%s\n' "$subject" | grep -Eq "^(${types})\((${scopes})\)!?: [^ ]"; then
+  echo "Write the subject as type(scope): summary, for example fix(core): reject a unit of 00." >&2
+  echo "Types: ${types}. Scopes: ${scopes}." >&2
+  exit 1
+fi
+python3 spec/scripts/check-tells --commit-msg "$1"

@@ -1,0 +1,21 @@
+// SPDX-FileCopyrightText: 2026 The Gatepost authors
+// SPDX-License-Identifier: Apache-2.0
+{
+    "$schema": "tools/infection/vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": ["src"],
+        // The generator writes these files, and its --check mode keeps them in step.
+        "excludes": ["Internal/NfkcTable.php", "Internal/SpecData.php"],
+    },
+    "phpUnit": {
+        "customPath": "vendor/bin/phpunit",
+    },
+    "mutators": {
+        "@default": true,
+    },
+    "minMsi": 85,
+    "tmpDir": "build/infection",
+    "logs": {
+        "text": "build/infection/infection.log",
+    },
+}
