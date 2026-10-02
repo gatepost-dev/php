@@ -37,6 +37,8 @@
     },
     "scripts": {
         "api:check": "scripts/check-api.sh",
+        "api:dump": "@php scripts/dump-api.php",
+        "api:dump:check": "@php scripts/dump-api.php --check",
         "changes:check": "changie merge --dry-run | cmp - CHANGELOG.md",
         "check": [
             "@generate:check",
@@ -48,9 +50,11 @@
             "@phpstan",
             "@phpmd",
             "@test:coverage",
+            "@api:dump:check",
             "@api:check",
             "@changes:check",
             "@licences",
+            "@deps:licences",
             "@secrets",
             "@workflows:check",
             "@tells"
@@ -58,6 +62,7 @@
         "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
         "cs": "php-cs-fixer fix",
         "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "deps:licences": "@php scripts/check-licences.php",
         "generate": "@php scripts/generate-data.php",
         "generate:check": "@php scripts/generate-data.php --check",
         "licences": "uvx --with charset-normalizer==3.5.2 reuse@6.2.0 lint",
@@ -79,11 +84,14 @@
     },
     "scripts-descriptions": {
         "api:check": "Compare the public API with the newest release tag.",
+        "api:dump": "Write the list of the public symbols to docs/api-dump.md.",
+        "api:dump:check": "Check that docs/api-dump.md matches the public symbols.",
         "changes:check": "Check that CHANGELOG.md matches the change files.",
         "check": "Run every check that CI runs.",
         "context:check": "Check that CONTEXT.md matches the copy in the spec.",
         "cs": "Fix the code style.",
         "cs:check": "Check the code style.",
+        "deps:licences": "Check that each locked package has a permissive licence (DEP-4).",
         "generate": "Write the generated classes in src/Internal.",
         "generate:check": "Check that the generated classes are up to date.",
         "licences": "Check the licence information of each file.",

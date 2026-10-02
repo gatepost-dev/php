@@ -14,6 +14,25 @@ use UnexpectedValueException;
  */
 final class VectorFile
 {
+    /**
+     * The vector files of spec/vectors that have a runner, without .json. VectorFileListTest
+     * compares this list with the folder and with the runners, so a new vector file fails the
+     * suite until someone writes its runner and adds its name here.
+     */
+    public const NAMES = [
+        'contains',
+        'is-legacy',
+        'normalize',
+        'parent',
+        'parse',
+        'parse-segments',
+        'parse-states',
+        'precision-for-accuracy',
+        'redact',
+        'state-name',
+        'truncate',
+    ];
+
     private const FORMAT_VERSION = 1;
 
     /**

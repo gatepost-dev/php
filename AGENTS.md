@@ -25,6 +25,6 @@ This repo is part of Gatepost, unofficial open-source developer tools for Nigeri
 1. A failing test came first, and it passes now.
 2. `composer check` passes. It runs the formatter, linters, tests, vectors, size limits and `check-tells`.
 3. Each user-visible change has a change file.
-4. A change to the public interface also updates the API report and the docs.
+4. A change to the public interface also updates the API dump and the docs. `composer api:dump` writes the dump to `docs/api-dump.md`.
 5. Each new domain term is in `CONTEXT.md`.
 6. The diff touches only the lines that the task needs.
