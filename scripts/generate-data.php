@@ -5,16 +5,18 @@
 
 declare(strict_types=1);
 
-// Writes the generated classes in src/Internal: SpecData.php from the JSON files in spec/data.
-// Run `composer generate` after the spec submodule changes. `composer generate:check` fails
-// when a file is out of date. This file holds the entry point and the helpers that write PHP
-// source.
+// Writes the generated classes in src/Internal: SpecData.php from the JSON files in spec/data,
+// and NfkcTable.php from the Unicode Character Database and the separators in
+// spec/data/format.json. Run `composer generate` after the spec submodule changes.
+// `composer generate:check` fails when a file is out of date. This file holds the entry point
+// and the helpers that write PHP source.
 
 namespace Gatepost\Postcode\Scripts;
 
 use RuntimeException;
 
 require __DIR__ . '/spec-data.php';
+require __DIR__ . '/nfkc-table.php';
 
 const ENTRY = '        ';
 
@@ -33,6 +35,7 @@ function main(string $root, array $arguments): int
     $separators = separatorCodePoints($format['separators'] ?? null);
     $files = [
         'src/Internal/SpecData.php' => specData($root, $format, $separators),
+        'src/Internal/NfkcTable.php' => nfkcTable(unicodeData($root), $separators),
     ];
     if ($arguments === []) {
         foreach ($files as $path => $contents) {

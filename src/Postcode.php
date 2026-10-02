@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode;
 
+use Gatepost\Postcode\Internal\NfkcTable;
 use Gatepost\Postcode\Internal\SpecData;
 
 /**
@@ -23,6 +24,27 @@ final class Postcode
 
     private const LOWER_ASCII = 'abcdefghijklmnopqrstuvwxyz';
     private const UPPER_ASCII = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    /**
+     * Cleans text that a user typed or pasted. It applies Unicode NFKC to each character whose
+     * NFKC form holds only ASCII characters and separators, such as full-width letters. It
+     * removes the separators that the spec lists: white space, hyphens and dashes, the full
+     * stop and some zero-width characters. Then it makes the ASCII letters a to z upper case.
+     * It keeps every other character and every byte that is not valid UTF-8. It does not
+     * check the result, and it does not limit the length of its input.
+     *
+     * ```php
+     * echo Postcode::normalize(' ek-01 a03.fk-01 '); // EK01A03FK01
+     * ```
+     *
+     * @param string $input Text from a user.
+     */
+    public static function normalize(string $input): string
+    {
+        $compatible = \strtr($input, NfkcTable::FORMS);
+
+        return self::upperAscii(\strtr($compatible, SpecData::SEPARATORS));
+    }
 
     /**
      * Returns the English name of a state from its two-letter code. The lookup ignores the

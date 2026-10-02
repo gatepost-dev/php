@@ -21,12 +21,18 @@ use SplFileInfo;
  * composer check runs the generator on the real data only, so it never meets a stale class, a bad
  * argument or a broken data file. The generator takes its root from __DIR__, so each test copies
  * scripts/ and the small data set in tests/Fixtures/generator into a temporary root and runs the
- * copy there. A data provider row holds a closure that changes the files under that root.
+ * copy there. The generator also reads the UnicodeData.txt that composer generate cached in
+ * build/unicode, so each test copies that file too. No test uses the network. A data provider
+ * row holds a closure that changes the files under that root.
  */
 final class GenerateDataTest extends TestCase
 {
-    private const GENERATED = 'src/Internal/SpecData.php';
-    private const STALE_MESSAGE = self::GENERATED . ' is out of date. Run composer generate.';
+    private const SPEC_DATA = 'src/Internal/SpecData.php';
+    private const NFKC_TABLE = 'src/Internal/NfkcTable.php';
+    private const GENERATED = [self::SPEC_DATA, self::NFKC_TABLE];
+    // grammar.md names Unicode 17.0 as the NFKC baseline. A table must come from that version.
+    private const UNICODE_VERSION = '17.0.0';
+    private const UNICODE_DATA = 'build/unicode/UnicodeData-' . self::UNICODE_VERSION . '.txt';
 
     private string $root;
 
@@ -41,6 +47,13 @@ final class GenerateDataTest extends TestCase
             \dirname(__DIR__) . '/Fixtures/generator/spec/data/*.json',
             "{$root}/spec/data",
         );
+        $cached = \dirname(__DIR__, 2) . '/' . self::UNICODE_DATA;
+        self::assertFileExists(
+            $cached,
+            'The cached UnicodeData.txt is missing. Run composer generate first. It downloads '
+            . 'the file into build/unicode.',
+        );
+        self::copyFiles($cached, "{$root}/build/unicode");
     }
 
     protected function tearDown(): void
@@ -63,40 +76,54 @@ final class GenerateDataTest extends TestCase
     }
 
     #[Test]
-    public function writesTheClassFromTheDataThatTheCheckAccepts(): void
+    public function writesTheClassesFromTheDataThatTheCheckAccepts(): void
     {
         $written = $this->generate();
         $checked = $this->generate('--check');
 
         self::assertSame(0, $written->exitCode, $written->output);
         self::assertSame('', $written->output);
-        $class = $this->generatedClass();
-        self::assertNotNull($class);
-        self::assertStringContainsString("'EK' => 'Ekiti',", $class);
-        self::assertStringContainsString('LEGACY_PATTERN = \'/^[0-9]{6}$/D\';', $class);
-        self::assertStringNotContainsString('NG-EK', $class);
+        $classes = $this->generatedClasses();
+        self::assertSame(self::GENERATED, \array_keys($classes));
+        $specData = $classes[self::SPEC_DATA];
+        self::assertStringContainsString("'EK' => 'Ekiti',", $specData);
+        self::assertStringContainsString('LEGACY_PATTERN = \'/^[0-9]{6}$/D\';', $specData);
+        self::assertStringNotContainsString('NG-EK', $specData);
+        $table = $classes[self::NFKC_TABLE];
+        $version = self::UNICODE_VERSION;
+        self::assertStringContainsString("UNICODE_VERSION = '{$version}';", $table);
+        self::assertStringContainsString('"\u{FF21}" => "A",', $table);
+        self::assertStringNotContainsString('"\u{00B5}" =>', $table);
         self::assertSame(0, $checked->exitCode, $checked->output);
         self::assertSame('', $checked->output);
     }
 
     /**
-     * @return array<string, array{Closure(string): void}> Each row makes the written class stale
-     *                                                     or removes it.
+     * Each row makes a written class stale or removes it, and gives the path that the check must
+     * name.
+     *
+     * @return array<string, array{Closure(string): void, string}>
      */
     public static function staleClasses(): array
     {
         return [
             'a value that someone edited in the class' => [
                 self::edit(
-                    self::GENERATED,
+                    self::SPEC_DATA,
                     'MAX_INPUT_CODE_POINTS = 64;',
                     'MAX_INPUT_CODE_POINTS = 65;',
                 ),
+                self::SPEC_DATA,
             ],
             'a limit that the spec changed after the last run' => [
                 self::edit('spec/data/precision.json', '"maxAccuracyM": 8', '"maxAccuracyM": 9'),
+                self::SPEC_DATA,
             ],
-            'a class that someone deleted' => [self::delete(self::GENERATED)],
+            'a class that someone deleted' => [self::delete(self::SPEC_DATA), self::SPEC_DATA],
+            'a form that someone edited in the table' => [
+                self::edit(self::NFKC_TABLE, '"\u{00AA}" => "a",', '"\u{00AA}" => "b",'),
+                self::NFKC_TABLE,
+            ],
         ];
     }
 
@@ -105,17 +132,19 @@ final class GenerateDataTest extends TestCase
      */
     #[Test]
     #[DataProvider('staleClasses')]
-    public function failsTheCheckAndLeavesTheFileAsItIs(Closure $makeStale): void
-    {
+    public function failsTheCheckAndLeavesTheFilesAsTheyAre(
+        Closure $makeStale,
+        string $stalePath,
+    ): void {
         $this->generate();
         $makeStale($this->root);
-        $before = $this->generatedClass();
+        $before = $this->generatedClasses();
 
         $run = $this->generate('--check');
 
         self::assertSame(1, $run->exitCode, $run->output);
-        self::assertStringContainsString(self::STALE_MESSAGE, $run->output);
-        self::assertSame($before, $this->generatedClass());
+        self::assertSame("{$stalePath} is out of date. Run composer generate.", $run->output);
+        self::assertSame($before, $this->generatedClasses());
     }
 
     /**
@@ -140,7 +169,7 @@ final class GenerateDataTest extends TestCase
 
         self::assertSame(2, $run->exitCode, $run->output);
         self::assertStringContainsString('Unknown argument --bogus', $run->output);
-        self::assertNull($this->generatedClass());
+        self::assertSame([], $this->generatedClasses());
     }
 
     /**
@@ -153,6 +182,7 @@ final class GenerateDataTest extends TestCase
         $format = 'spec/data/format.json';
         $precision = 'spec/data/precision.json';
         $digits = '"digits": { "O": "0", "I": "1", "L": "1" }';
+        $letters = '"letters": { "0": "O", "1": "I" }';
         $notCodePoint = 'must be a code point from U+0000';
 
         return [
@@ -180,10 +210,19 @@ final class GenerateDataTest extends TestCase
                 self::edit($format, '"O": "0", "I": "1"', '"O": "A", "I": "1"'),
                 'spec/data/format.json: suggestions.digits has the fix O => A',
             ],
+            'a fix table that writes a digit in a letter segment' => [
+                self::edit($format, $letters, '"letters": { "O": "0" }'),
+                'spec/data/format.json: suggestions.letters has the fix O => 0',
+            ],
             'a fix table that is not an object' => [
                 self::edit($format, $digits, '"digits": "none"'),
                 'spec/data/format.json: suggestions.digits must be an object with at least one '
                 . 'fix, but it is "none"',
+            ],
+            'a fix table with no fix' => [
+                self::edit($format, $digits, '"digits": {}'),
+                'spec/data/format.json: suggestions.digits must be an object with at least one '
+                . 'fix, but it is []',
             ],
             'limits that fall' => [
                 self::edit($precision, '"maxAccuracyM": 20', '"maxAccuracyM": 5'),
@@ -210,6 +249,14 @@ final class GenerateDataTest extends TestCase
                 'spec/data/format.json: each separator must be written as U+ and 4 to 6 hex '
                 . 'digits, but it is "0x0009"',
             ],
+            'a cached UnicodeData.txt that someone changed' => [
+                self::edit(
+                    self::UNICODE_DATA,
+                    'FF21;FULLWIDTH LATIN CAPITAL LETTER A;Lu;0;L;<wide> 0041;',
+                    'FF21;FULLWIDTH LATIN CAPITAL LETTER A;Lu;0;L;<wide> 0042;',
+                ),
+                'does not match its SHA-256 hash',
+            ],
         ];
     }
 
@@ -218,12 +265,12 @@ final class GenerateDataTest extends TestCase
      */
     #[Test]
     #[DataProvider('brokenData')]
-    public function stopsOnBrokenDataWithAClearReasonAndKeepsTheOldClass(
+    public function stopsOnBrokenDataWithAClearReasonAndKeepsTheOldClasses(
         Closure $breakData,
         string $reason,
     ): void {
         $this->generate();
-        $old = $this->generatedClass();
+        $old = $this->generatedClasses();
         $breakData($this->root);
 
         $run = $this->generate();
@@ -231,7 +278,7 @@ final class GenerateDataTest extends TestCase
         self::assertNotSame(0, $run->exitCode, $run->output);
         self::assertStringContainsString($reason, $run->output);
         self::assertStringNotContainsString('Warning', $run->output);
-        self::assertSame($old, $this->generatedClass());
+        self::assertSame($old, $this->generatedClasses());
     }
 
     /**
@@ -256,7 +303,7 @@ final class GenerateDataTest extends TestCase
         $run = $this->generate();
 
         self::assertSame(0, $run->exitCode, $run->output);
-        $class = $this->generatedClass();
+        $class = $this->generatedClasses()[self::SPEC_DATA] ?? null;
         self::assertNotNull($class);
         // PHP throws a ParseError here when the class has a syntax error.
         self::assertNotSame([], \token_get_all($class, TOKEN_PARSE));
@@ -274,18 +321,23 @@ final class GenerateDataTest extends TestCase
     }
 
     /**
-     * @return ?string The written class, or null when the root holds none.
+     * @return array<string, string> The written classes by path. A class that the root lacks has
+     *                               no entry.
      */
-    private function generatedClass(): ?string
+    private function generatedClasses(): array
     {
-        $path = "{$this->root}/" . self::GENERATED;
-        if (!\is_file($path)) {
-            return null;
+        $classes = [];
+        foreach (self::GENERATED as $path) {
+            $file = "{$this->root}/{$path}";
+            if (!\is_file($file)) {
+                continue;
+            }
+            $class = \file_get_contents($file);
+            self::assertIsString($class);
+            $classes[$path] = $class;
         }
-        $class = \file_get_contents($path);
-        self::assertIsString($class);
 
-        return $class;
+        return $classes;
     }
 
     /**
