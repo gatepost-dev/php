@@ -14,6 +14,7 @@
 /CODING_STANDARDS.md export-ignore
 /CONTEXT.md export-ignore
 /REUSE.toml export-ignore
+/composer.lock export-ignore
 /docs export-ignore
 /infection.json5 export-ignore
 /phpmd.xml export-ignore

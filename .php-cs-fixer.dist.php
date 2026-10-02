@@ -27,7 +27,10 @@ return (new Config())
         // branches, and Xdebug counts the one that tests cannot reach. T-7 measures branches.
         'native_function_invocation' => ['include' => ['@internal'], 'scope' => 'namespaced'],
         'no_unused_imports' => true,
-        'ordered_imports' => true,
+        'ordered_imports' => [
+            'imports_order' => ['class', 'function', 'const'],
+            'sort_algorithm' => 'alpha',
+        ],
         'strict_comparison' => true,
         'strict_param' => true,
     ]);

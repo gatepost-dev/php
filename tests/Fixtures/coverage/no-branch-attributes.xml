@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- A report from a tool that writes no branch attributes at all. -->
+<coverage line-rate="1" lines-covered="10" lines-valid="10" version="0.4" timestamp="1">
+  <packages>
+    <package name="Covered.php" line-rate="1" complexity="2">
+      <classes>
+        <class name="Gatepost\Postcode\Covered" filename="Covered.php"
+            line-rate="1" complexity="2"/>
+      </classes>
+    </package>
+  </packages>
+</coverage>

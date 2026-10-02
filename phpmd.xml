@@ -13,10 +13,13 @@
     <rule ref="rulesets/codesize.xml">
         <exclude name="CyclomaticComplexity"/>
         <exclude name="ExcessiveParameterList"/>
+        <!-- TELL-2 already limits complexity, and early returns are the advised style. -->
+        <exclude name="NPathComplexity"/>
     </rule>
     <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
         <properties>
-            <property name="reportLevel" value="10"/>
+            <!-- TELL-2 allows a complexity of 10, so PHPMD reports from 11. -->
+            <property name="reportLevel" value="11"/>
         </properties>
     </rule>
     <rule ref="rulesets/codesize.xml/ExcessiveParameterList">

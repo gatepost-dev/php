@@ -11,9 +11,11 @@ To run every check, you need PHP 8.4 with Xdebug, Composer, Python 3.11 or later
 ```sh
 composer install
 composer --working-dir=tools/infection install
-composer --working-dir=tools/bc-check install
+composer --working-dir=tools/bc-check install --ignore-platform-req=ext-intl
 composer check
 ```
+
+The BC check tool lists ext-intl as a requirement. Its check runs without that extension, so the install line ignores the requirement. The line also works on a machine that has ext-intl.
 
 ## Licence
 

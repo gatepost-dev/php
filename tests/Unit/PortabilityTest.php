@@ -17,7 +17,8 @@ use SplFileInfo;
 /**
  * The package runs on shared WordPress hosts. Many of them lack ext-intl or ext-mbstring, and
  * on PHP 8.1 the case functions follow the locale. A Packagist install has no spec submodule,
- * so the package must read no files.
+ * so the package must read no files. A string such as 'strtoupper' is a callable, so a string
+ * literal counts as a name too.
  */
 final class PortabilityTest extends TestCase
 {
@@ -25,6 +26,7 @@ final class PortabilityTest extends TestCase
         \T_STRING,
         \T_NAME_QUALIFIED,
         \T_NAME_FULLY_QUALIFIED,
+        \T_CONSTANT_ENCAPSED_STRING,
         \T_INCLUDE,
         \T_INCLUDE_ONCE,
         \T_REQUIRE,
@@ -41,21 +43,35 @@ final class PortabilityTest extends TestCase
         return [
             'functions from ext-mbstring (PHP-9)' => [[], ['mb_']],
             'classes and functions from ext-intl (PHP-9)' => [
-                ['collator', 'intlchar', 'normalizer', 'transliterator', 'uconverter'],
-                ['grapheme_', 'intl', 'normalizer_'],
+                [
+                    'collator', 'intlbreakiterator', 'intlchar', 'intldateformatter', 'locale',
+                    'messageformatter', 'normalizer', 'numberformatter', 'resourcebundle',
+                    'spoofchecker', 'transliterator', 'uconverter',
+                ],
+                [
+                    'collator_', 'datefmt_', 'grapheme_', 'idn_', 'intl', 'locale_', 'msgfmt_',
+                    'normalizer_', 'numfmt_', 'resourcebundle_', 'transliterator_',
+                ],
             ],
             'case functions that follow the locale on PHP 8.1' => [
                 ['lcfirst', 'strtolower', 'strtoupper', 'ucfirst', 'ucwords'],
                 [],
             ],
             'file access, which a Packagist install cannot serve (CS-2)' => [
-                ['file', 'file_get_contents', 'fopen', 'include', 'include_once', 'require'],
+                [
+                    'directoryiterator', 'file', 'file_exists', 'file_get_contents',
+                    'file_put_contents', 'fopen', 'fread', 'fwrite', 'glob', 'include',
+                    'include_once', 'is_file', 'opendir', 'readfile', 'require', 'require_once',
+                    'scandir', 'splfileinfo', 'splfileobject',
+                ],
                 [],
             ],
             'the clock and randomness (CS-2)' => [
                 [
-                    'date', 'hrtime', 'microtime', 'time',
-                    'mt_rand', 'rand', 'random_bytes', 'random_int',
+                    'date', 'date_create', 'datetime', 'datetimeimmutable', 'gmdate', 'hrtime',
+                    'microtime', 'mktime', 'sleep', 'strtotime', 'time', 'usleep',
+                    'array_rand', 'lcg_value', 'mt_rand', 'rand', 'random_bytes', 'random_int',
+                    'shuffle', 'str_shuffle', 'uniqid',
                 ],
                 [],
             ],
@@ -75,7 +91,8 @@ final class PortabilityTest extends TestCase
             if (!\is_array($token) || !\in_array($token[0], self::NAME_TOKENS, true)) {
                 continue;
             }
-            $name = \strtolower(\ltrim($token[1], '\\'));
+            // The quotes of a string literal are not part of the name.
+            $name = \strtolower(\ltrim(\trim($token[1], '\'"'), '\\'));
             $banned = \in_array($name, $names, true);
             foreach ($prefixes as $prefix) {
                 $banned = $banned || \str_starts_with($name, $prefix);

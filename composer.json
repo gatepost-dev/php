@@ -42,6 +42,7 @@
             "@context:check",
             "@composer validate --strict",
             "@composer normalize --dry-run",
+            "@composer dump-autoload --optimize --strict-psr --no-scripts",
             "@cs:check",
             "@phpstan",
             "@phpmd",
@@ -55,7 +56,7 @@
         "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
         "cs": "php-cs-fixer fix",
         "cs:check": "php-cs-fixer fix --dry-run --diff",
-        "licences": "uvx --with charset-normalizer reuse lint",
+        "licences": "uvx --with charset-normalizer reuse@6.2.0 lint",
         "mutation": [
             "@putenv XDEBUG_MODE=coverage",
             "tools/infection/vendor/bin/infection --threads=max"
