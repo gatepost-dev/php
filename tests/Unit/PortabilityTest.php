@@ -154,17 +154,15 @@ final class PortabilityTest extends TestCase
         ];
     }
 
-    /**
-     * @param list<string> $names
-     * @param list<string> $prefixes
-     */
+    // One pass over the source for every list. Under Xdebug path coverage, a pass for each list
+    // made composer check much slower.
     #[Test]
-    #[DataProvider('bannedNames')]
-    public function keepsTheSourceFreeOf(array $names, array $prefixes): void
+    public function keepsTheSourceFreeOfEveryBannedName(): void
     {
+        $lookup = self::lookup();
         $found = [];
         foreach (self::sourceFiles('src') as $file => $code) {
-            foreach (self::bannedIn($code, $names, $prefixes) as [$name, $line]) {
+            foreach (self::bannedIn($code, $lookup) as [$name, $line]) {
                 $found[] = "{$name} in {$file}:{$line}";
             }
         }
@@ -179,14 +177,7 @@ final class PortabilityTest extends TestCase
     #[DataProvider('plantedCode')]
     public function findsABannedNameInPlantedCode(string $statements, array $expected): void
     {
-        $names = [];
-        $prefixes = [];
-        foreach (self::bannedNames() as [$groupNames, $groupPrefixes]) {
-            $names = [...$names, ...$groupNames];
-            $prefixes = [...$prefixes, ...$groupPrefixes];
-        }
-
-        $found = self::bannedIn("<?php {$statements}", $names, $prefixes);
+        $found = self::bannedIn("<?php {$statements}", self::lookup());
 
         self::assertSame($expected, \array_column($found, 0));
     }
@@ -211,9 +202,9 @@ final class PortabilityTest extends TestCase
     {
         $found = [];
         foreach ([...self::sourceFiles('src'), ...self::sourceFiles('scripts')] as $file => $code) {
-            foreach (self::significantTokens($code) as [$id, , $line]) {
-                if ($id === '@' || $id === \T_EVAL) {
-                    $found[] = "{$file}:{$line}";
+            foreach (\token_get_all($code) as $token) {
+                if ($token === '@' || (\is_array($token) && $token[0] === \T_EVAL)) {
+                    $found[] = $file;
                 }
             }
         }
@@ -222,31 +213,71 @@ final class PortabilityTest extends TestCase
     }
 
     /**
+     * The lists as lookups: the names as keys, and the prefixes as one pattern.
+     *
+     * @return array{array<string, int>, string}
+     */
+    private static function lookup(): array
+    {
+        $names = [];
+        $prefixes = [];
+        foreach (self::bannedNames() as [$groupNames, $groupPrefixes]) {
+            $names = [...$names, ...$groupNames];
+            $prefixes = [...$prefixes, ...$groupPrefixes];
+        }
+        $quoted = \array_map(
+            static fn(string $prefix): string => \preg_quote($prefix, '/'),
+            $prefixes,
+        );
+
+        return [\array_flip($names), '/\A(?:' . \implode('|', $quoted) . ')/'];
+    }
+
+    /**
      * The banned names that the code holds, each with its line.
      *
-     * @param list<string> $names
-     * @param list<string> $prefixes
+     * @param array{array<string, int>, string} $lookup
      *
      * @return list<array{string, int}>
      */
-    private static function bannedIn(string $code, array $names, array $prefixes): array
+    private static function bannedIn(string $code, array $lookup): array
     {
-        $tokens = self::significantTokens($code);
         $found = [];
-        foreach ($tokens as $index => [$id, $text, $line]) {
-            $isMember = \in_array($tokens[$index - 1][0] ?? null, self::MEMBER_OPERATORS, true);
-            if ($isMember || !\in_array($id, self::NAME_TOKENS, true)) {
+        $previous = null;
+        foreach (\token_get_all($code) as $token) {
+            if (!\is_array($token)) {
+                $previous = $token;
                 continue;
             }
-            foreach (self::spellings($text) as $name) {
-                if (self::isBanned($name, $names, $prefixes)) {
-                    $found[] = [$name, $line];
-                    break;
-                }
+            [$id, $text, $line] = $token;
+            if ($id === \T_WHITESPACE || $id === \T_COMMENT || $id === \T_DOC_COMMENT) {
+                continue;
+            }
+            $isName = \in_array($id, self::NAME_TOKENS, true)
+                && !\in_array($previous, self::MEMBER_OPERATORS, true);
+            $previous = $id;
+            $name = $isName ? self::bannedName($text, $lookup) : null;
+            if ($name !== null) {
+                $found[] = [$name, $line];
             }
         }
 
         return $found;
+    }
+
+    /**
+     * @param array{array<string, int>, string} $lookup
+     */
+    private static function bannedName(string $text, array $lookup): ?string
+    {
+        [$banned, $prefixPattern] = $lookup;
+        foreach (self::spellings($text) as $name) {
+            if (isset($banned[$name]) || \preg_match($prefixPattern, $name) === 1) {
+                return $name;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -261,42 +292,6 @@ final class PortabilityTest extends TestCase
         $name = \strtolower(\ltrim(\trim($text, '\'"'), '\\'));
 
         return [$name, \explode('::', $name)[0]];
-    }
-
-    /**
-     * @param list<string> $names
-     * @param list<string> $prefixes
-     */
-    private static function isBanned(string $name, array $names, array $prefixes): bool
-    {
-        foreach ($prefixes as $prefix) {
-            if (\str_starts_with($name, $prefix)) {
-                return true;
-            }
-        }
-
-        return \in_array($name, $names, true);
-    }
-
-    /**
-     * Each token of the code, with its id or its character, its text and its line. White space
-     * and comments are left out.
-     *
-     * @return list<array{int|string, string, int}>
-     */
-    private static function significantTokens(string $code): array
-    {
-        $tokens = [];
-        $line = 1;
-        foreach (\token_get_all($code) as $token) {
-            $id = \is_array($token) ? $token[0] : $token;
-            $line = \is_array($token) ? $token[2] : $line;
-            if (!\in_array($id, [\T_WHITESPACE, \T_COMMENT, \T_DOC_COMMENT], true)) {
-                $tokens[] = [$id, \is_array($token) ? $token[1] : $token, $line];
-            }
-        }
-
-        return $tokens;
     }
 
     /**
