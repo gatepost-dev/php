@@ -86,7 +86,7 @@ final class VectorFile
     private static function read(string $path): string
     {
         // A missing file gives false here, so the clear message below replaces a PHP warning.
-        $text = \is_file($path) ? \file_get_contents($path) : false;
+        $text = \is_readable($path) && \is_file($path) ? \file_get_contents($path) : false;
         if ($text === false) {
             throw new UnexpectedValueException("Cannot read {$path}. Check out the submodule.");
         }

@@ -46,9 +46,12 @@ function unicodeData(string $root): string
         }
         writeFile($path, $downloaded);
     }
-    $contents = \file_get_contents($path);
+    // A file that no user can read gives false here, and the message below covers it.
+    $contents = \is_readable($path) ? \file_get_contents($path) : false;
     if ($contents === false || !hasPinnedHash($contents)) {
-        throw new RuntimeException("{$path} does not match its SHA-256 hash. Delete it and retry.");
+        throw new RuntimeException(
+            "{$path} does not match its SHA-256 hash, or no user can read it. Delete it and retry.",
+        );
     }
 
     return $contents;

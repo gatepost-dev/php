@@ -54,7 +54,7 @@ function main(string $root, array $arguments): int
     }
     $stale = \array_filter(
         \array_keys($files),
-        static fn(string $path): bool => !\is_file("{$root}/{$path}")
+        static fn(string $path): bool => !\is_readable("{$root}/{$path}")
             || \file_get_contents("{$root}/{$path}") !== $files[$path],
     );
     foreach ($stale as $path) {

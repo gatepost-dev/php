@@ -61,6 +61,40 @@ final class VectorFileTest extends TestCase
     }
 
     #[Test]
+    public function explainsAFileThatNoUserCanReadWithoutAPhpWarning(): void
+    {
+        $name = 'unreadable';
+        $path = \dirname(__DIR__) . "/Fixtures/vectors/{$name}.json";
+        \copy(\dirname(__DIR__) . '/Fixtures/vectors/valid.json', $path);
+        \chmod($path, 0o000);
+
+        try {
+            if (\is_readable($path)) {
+                self::markTestSkipped('This user can read each file, as root can.');
+            }
+            $warnings = [];
+            $collect = static function (int $level, string $message) use (&$warnings): bool {
+                $warnings[] = $message;
+
+                return true;
+            };
+            \set_error_handler($collect);
+            try {
+                VectorFile::cases(self::FIXTURES . $name, 'stateName');
+                self::fail('The loader accepted a file that it cannot read.');
+            } catch (UnexpectedValueException $error) {
+                self::assertStringContainsString('Cannot read', $error->getMessage());
+            } finally {
+                \restore_error_handler();
+            }
+            self::assertSame([], $warnings);
+        } finally {
+            \chmod($path, 0o600);
+            \unlink($path);
+        }
+    }
+
+    #[Test]
     public function explainsAMissingFileWithoutAPhpWarning(): void
     {
         $warnings = [];

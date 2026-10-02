@@ -34,7 +34,8 @@ function unrunClasses(\DOMDocument $report): array
 
 $report = $argv[1] ?? '';
 $document = new \DOMDocument();
-if (!\is_file($report) || !$document->load($report) || $document->documentElement === null) {
+$isReadable = \is_file($report) && \is_readable($report);
+if (!$isReadable || !$document->load($report) || $document->documentElement === null) {
     \fwrite(\STDERR, "Name a Cobertura report, such as build/coverage/cobertura.xml.\n");
     exit(2);
 }

@@ -185,7 +185,7 @@ function dumpApi(string $root, array $arguments): int
 
         return 2;
     }
-    if ($arguments !== [] && (!\is_file($path) || \file_get_contents($path) !== $text)) {
+    if ($arguments !== [] && (!\is_readable($path) || \file_get_contents($path) !== $text)) {
         \fwrite(\STDERR, DUMP_FILE . " is out of date. Run composer api:dump.\n");
 
         return 1;
