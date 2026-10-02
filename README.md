@@ -15,8 +15,10 @@ Parse, check and format Nigeria's digital postcodes in PHP, with no network acce
 ## Install
 
 ```sh
-composer require gatepost/postcode
+composer require gatepost/postcode:^0.1@alpha
 ```
+
+Composer installs only stable releases unless the constraint allows an alpha.
 
 ## Quickstart
 
@@ -33,7 +35,7 @@ if ($result->isOk()) {
 }
 ```
 
-`parse` accepts any spacing, dashes and letter case. It never throws.
+`parse` accepts any spacing, dashes and letter case. For any string, it returns a result and never throws.
 
 ## What it does
 
@@ -47,7 +49,7 @@ if ($result->isOk()) {
 
 ### Limit the input
 
-`parse` reads at most 64 code points of input. This is the input limit. Longer input fails with `ParseErrorCode::BadLength`, even when it holds a valid code. The check runs before `parse` cleans the input, so long text cannot stall a server. `isLegacy` applies the same limit.
+`parse` reads at most 64 code points of input. This is the input limit. Longer input fails with `ParseErrorCode::BadLength`, even when it holds a valid code. The check runs before `parse` normalises the input, so long text cannot stall a server. `isLegacy` applies the same limit.
 
 ```php
 <?php
@@ -70,7 +72,7 @@ echo Postcode::parse(str_pad($code, 65))->error?->code->value, "\n"; // bad_leng
 
 ## Docs
 
-The Gatepost docs site will hold the guide and the API reference. Until it is live, each public method has a doc comment with an example.
+The Gatepost docs site will hold the guide and the API reference. Until it is live, each public method of `Postcode` has a doc comment with an example.
 
 ## Support
 
@@ -78,7 +80,7 @@ Ask questions and report bugs in [GitHub Issues](https://github.com/gatepost-dev
 
 ## Contributing
 
-Read [`CONTRIBUTING.md`](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request. The title and the body of the pull request become the squash commit on `main`. The title and the suffix ` (#N)` that GitHub adds have at most 72 characters together, and each line of the body has at most 100.
+Read [`CONTRIBUTING.md`](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request. The title and the body of the pull request become the squash commit on `main`. The title and the suffix ` (#N)` that GitHub adds have at most 72 characters together.
 
 To run every check, you need PHP 8.4 with Xdebug, Composer, Python 3.11 or later, uv, gitleaks and changie. Clone with `git clone --recurse-submodules`, then run:
 

@@ -34,7 +34,8 @@ jobs:
         with:
           php-version: '8.4'
           coverage: xdebug
-          # The API check tool needs ext-intl. The package does not, as the tests job shows.
+          # Composer requires ext-intl to install the BC tool. The package does not need it, as
+          # the tests job shows.
           extensions: intl
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -93,3 +94,13 @@ jobs:
       # checks that the generated classes match the spec data on this PHP version.
       - run: composer generate:check
       - run: composer test
+      # The dev packages include polyfills of ext-intl, which could hide a call to an intl
+      # function. This step leaves them out of the autoloader and runs the quickstart. The job
+      # keeps ext-mbstring, because PHPUnit needs it, so PortabilityTest checks those names.
+      - name: Run the quickstart without the dev packages
+        run: |
+          composer dump-autoload --no-dev
+          php -r '
+            require "vendor/autoload.php";
+            echo Gatepost\Postcode\Postcode::parse("ek 01 a03 fk 01")->value->canonical;
+          ' | grep -x 'EK-01-A03-FK-01'

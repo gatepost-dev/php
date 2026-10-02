@@ -93,6 +93,7 @@ final class PropertiesTest extends TestCase
             "\u{0301}", "\u{00B5}", "\u{202E}", "\u{1F600}", "\xFF", "\xC3", "\xED\xA0\x80",
         ];
         $nearCodes = [...self::codePieces(), ...$separators];
+        $parsed = 0;
         for ($run = 0; $run < self::RUNS; ++$run) {
             // A long text of noise fails an early check. A short text of codes, typos and
             // separators passes the early checks, so it reaches the later checks, and some of
@@ -102,9 +103,14 @@ final class PropertiesTest extends TestCase
                 : self::randomText($nearCodes, \mt_rand(1, 3));
 
             $result = self::parseOrFail($text, \mt_rand(0, 1) === 1);
+            if ($result->isOk()) {
+                ++$parsed;
+            }
 
             self::assertNotSame($result->value === null, $result->error === null, \bin2hex($text));
         }
+
+        self::assertGreaterThan(0, $parsed, 'No text parsed, so the property reached no success.');
     }
 
     #[Test]

@@ -55,7 +55,7 @@ final class ReadmeTest extends TestCase
     #[Test]
     public function listsEachPhpExampleOfTheReadmeInTheTest(): void
     {
-        $examples = \preg_match_all('/^```php$/m', self::readme());
+        $examples = \preg_match_all('/^```php$/m', self::repoFile('README.md'));
 
         self::assertSame(
             \count(self::examples()),
@@ -73,12 +73,30 @@ final class ReadmeTest extends TestCase
         self::assertSame(SpecData::MAX_INPUT_CODE_POINTS, (int) $limit[1]);
     }
 
-    private static function readme(): string
+    #[Test]
+    public function installsWithAConstraintThatAllowsTheNewestRelease(): void
     {
-        $readme = \file_get_contents(\dirname(__DIR__, 2) . '/README.md');
-        self::assertIsString($readme);
+        $found = \preg_match('/^## (\S+) - /m', self::repoFile('CHANGELOG.md'), $newest);
+        self::assertSame(1, $found, 'The changelog has no release.');
+        $pattern = '/^composer require gatepost\/postcode\S*$/m';
+        $found = \preg_match($pattern, self::section('Install'), $command);
+        self::assertSame(1, $found, 'The Install section has no composer require line.');
 
-        return $readme;
+        self::assertStringContainsString(self::stabilityFlag($newest[1]), $command[0]);
+    }
+
+    private static function repoFile(string $name): string
+    {
+        $contents = \file_get_contents(\dirname(__DIR__, 2) . '/' . $name);
+        self::assertIsString($contents);
+
+        return $contents;
+    }
+
+    // Composer installs only stable releases, unless the constraint names the stability.
+    private static function stabilityFlag(string $version): string
+    {
+        return \preg_match('/-(alpha|beta|rc)\b/i', $version, $label) === 1 ? '@' . $label[1] : '';
     }
 
     /**
@@ -87,7 +105,7 @@ final class ReadmeTest extends TestCase
     private static function section(string $heading): string
     {
         $pattern = '/^#{2,3} ' . \preg_quote($heading, '/') . '\n(.*?)(?=^#|\z)/ms';
-        $found = \preg_match($pattern, self::readme(), $section);
+        $found = \preg_match($pattern, self::repoFile('README.md'), $section);
 
         self::assertSame(1, $found, "The README has no section {$heading}.");
 
