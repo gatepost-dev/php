@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Gatepost\Postcode;
 
 use Gatepost\Postcode\Internal\NfkcTable;
+use Gatepost\Postcode\Internal\SegmentRules;
 use Gatepost\Postcode\Internal\SpecData;
 
 /**
@@ -30,7 +31,6 @@ final class Postcode
     private const WITHIN_INPUT_LIMIT = '/\A.{0,' . SpecData::MAX_INPUT_CODE_POINTS . '}\z/su';
     private const LOWER_ASCII = 'abcdefghijklmnopqrstuvwxyz';
     private const UPPER_ASCII = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    private const CODE_CHARACTERS = '/\A[A-Z0-9]+\z/';
 
     /**
      * The code with no separators, for example EK01A03FK01.
@@ -78,7 +78,10 @@ final class Postcode
      * code point of the input limit.
      *
      * After normalisation, parse applies these checks in order. The first check that fails
-     * gives the error code: Empty, LegacyCode, BadCharacter and BadLength.
+     * gives the error code: Empty, LegacyCode, BadCharacter, BadLength, UnknownState and
+     * BadSegment. For UnknownState and BadSegment, the error names the segment, and it can
+     * suggest the canonical form of one fixed code. The fix replaces a look-alike character
+     * in the wrong place, such as the letter O in an LGA. It never changes the district.
      *
      * ```php
      * $result = Postcode::parse('ek 01 a03 fk 01');
@@ -104,12 +107,16 @@ final class Postcode
         if (\preg_match(SpecData::LEGACY_PATTERN, $text) === 1) {
             return self::failure(ParseErrorCode::LegacyCode);
         }
-        if (\preg_match(self::CODE_CHARACTERS, $text) !== 1) {
+        if (\preg_match(SegmentRules::PATTERNS['letters-or-digits'], $text) !== 1) {
             return self::failure(ParseErrorCode::BadCharacter);
         }
         $precision = self::precisionOfLength(\strlen($text));
         if ($precision === null || (!$allowPartial && $precision !== Precision::Unit)) {
             return self::failure(ParseErrorCode::BadLength);
+        }
+        $segmentError = SegmentRules::check($text, $allowPartial);
+        if ($segmentError !== null) {
+            return ParseResult::failure($segmentError);
         }
 
         return ParseResult::success(new self($text, $precision));

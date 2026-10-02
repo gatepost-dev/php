@@ -11,6 +11,7 @@ use Gatepost\Postcode\ParseError;
 use Gatepost\Postcode\ParseErrorCode;
 use Gatepost\Postcode\ParseResult;
 use Gatepost\Postcode\Postcode;
+use Gatepost\Postcode\Precision;
 use Gatepost\Postcode\Segments;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -30,6 +31,20 @@ final class PostcodeTest extends TestCase
             'Segments' => [Segments::class],
             'ParseResult' => [ParseResult::class],
             'ParseError' => [ParseError::class],
+        ];
+    }
+
+    /**
+     * Digit segments with a letter after a digit. The (int) cast of the minimum check reads
+     * only the leading digits of such text, so only the end of the digit pattern rejects it.
+     *
+     * @return array<string, array{string, Precision, string}>
+     */
+    public static function lettersAfterADigit(): array
+    {
+        return [
+            'in the LGA' => ['EK1OA03FK01', Precision::Lga, 'EK-10-A03-FK-01'],
+            'in the unit' => ['EK01A03FK1O', Precision::Unit, 'EK-01-A03-FK-10'],
         ];
     }
 
@@ -65,5 +80,20 @@ final class PostcodeTest extends TestCase
     public function rejectsAPartialCodeUnlessTheCallerAllowsOne(): void
     {
         self::assertSame(ParseErrorCode::BadLength, Postcode::parse('EK01A03')->error?->code);
+    }
+
+    #[Test]
+    #[DataProvider('lettersAfterADigit')]
+    public function rejectsALetterAfterADigitInADigitSegment(
+        string $input,
+        Precision $segment,
+        string $suggestion,
+    ): void {
+        $error = Postcode::parse($input)->error;
+
+        self::assertNotNull($error);
+        self::assertSame(ParseErrorCode::BadSegment, $error->code);
+        self::assertSame($segment, $error->segment);
+        self::assertSame($suggestion, $error->suggestion);
     }
 }

@@ -20,7 +20,11 @@ final class ParseTest extends TestCase
      */
     public static function vectors(): array
     {
-        return VectorFile::cases('parse', 'parse');
+        return [
+            ...VectorFile::cases('parse', 'parse'),
+            ...VectorFile::cases('parse-segments', 'parse'),
+            ...VectorFile::cases('parse-states', 'parse'),
+        ];
     }
 
     #[Test]
