@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode\Tests\Vectors;
 
+use Gatepost\Postcode\Postcode;
 use UnexpectedValueException;
 
 /**
@@ -70,6 +71,35 @@ final class VectorCase
             $input === '-Infinity' => -INF,
             default => throw new UnexpectedValueException("{$this->id} has no accuracy input."),
         };
+    }
+
+    /**
+     * One named field of the input, such as the precision in a truncate case.
+     */
+    public function field(string $name): string
+    {
+        $input = $this->case['input'];
+        $value = \is_array($input) ? ($input[$name] ?? null) : null;
+        if (!\is_string($value)) {
+            throw new UnexpectedValueException("{$this->id} has no input field {$name}.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * Parses the canonical code in one field of the input. The runner rules in
+     * spec/vectors/README.md allow partial codes here.
+     */
+    public function postcode(string $name): Postcode
+    {
+        $code = $this->field($name);
+        $result = Postcode::parse($code, allowPartial: true);
+        if (!$result->isOk()) {
+            throw new UnexpectedValueException("{$this->id} holds {$code}, which does not parse.");
+        }
+
+        return $result->value;
     }
 
     public function allowPartial(): bool

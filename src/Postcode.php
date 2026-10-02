@@ -10,6 +10,7 @@ namespace Gatepost\Postcode;
 use Gatepost\Postcode\Internal\NfkcTable;
 use Gatepost\Postcode\Internal\SegmentRules;
 use Gatepost\Postcode\Internal\SpecData;
+use InvalidArgumentException;
 
 /**
  * A Nigerian digital postcode that parse() accepted, such as EK-01-A03-FK-01. Each form holds
@@ -200,6 +201,85 @@ final class Postcode
         }
 
         return Precision::from(SpecData::PRECISION_FALLBACK);
+    }
+
+    /**
+     * Cuts the postcode down to a less precise segment, for example from a building to its
+     * area.
+     *
+     * ```php
+     * echo $postcode->truncate(Precision::District)->canonical; // EK-01-A03
+     * ```
+     *
+     * @param Precision $to The precision to keep. It must not be more precise than the code.
+     *
+     * @throws InvalidArgumentException When $to is more precise than the code.
+     */
+    public function truncate(Precision $to): self
+    {
+        $end = SpecData::SEGMENTS[$to->value]['end'];
+        if ($end > \strlen($this->compact)) {
+            throw new InvalidArgumentException(\sprintf(
+                'Cannot truncate a %1$s postcode to %2$s. Choose %1$s or a less precise segment.',
+                $this->precision->value,
+                $to->value,
+            ));
+        }
+
+        return new self(\substr($this->compact, 0, $end), $to);
+    }
+
+    /**
+     * Returns the postcode one segment less precise, such as the area of a building.
+     *
+     * ```php
+     * echo $postcode->parent()?->canonical; // EK-01-A03-FK
+     * ```
+     *
+     * @return ?self The parent, or null for a state code.
+     */
+    public function parent(): ?self
+    {
+        $larger = null;
+        foreach (SpecData::SEGMENTS as $name => $segment) {
+            if ($segment['end'] < \strlen($this->compact)) {
+                $larger = Precision::from($name);
+            }
+        }
+
+        return $larger === null ? null : $this->truncate($larger);
+    }
+
+    /**
+     * Tells whether another postcode lies inside this one, such as a building inside its
+     * district. A postcode contains itself.
+     *
+     * ```php
+     * $district->contains($building); // true
+     * ```
+     *
+     * @param self $code The postcode to test.
+     */
+    public function contains(self $code): bool
+    {
+        return \str_starts_with($code->compact, $this->compact);
+    }
+
+    /**
+     * Hides the unit, so that a log shows the area but not the building. A code without a
+     * unit stays as it is.
+     *
+     * ```php
+     * echo $postcode->redact(); // EK-01-A03-FK-**
+     * ```
+     */
+    public function redact(): string
+    {
+        if ($this->segments->unit === null) {
+            return $this->canonical;
+        }
+
+        return \substr($this->canonical, 0, -\strlen($this->segments->unit)) . '**';
     }
 
     private static function checkInput(string $input): ?ParseErrorCode

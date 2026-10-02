@@ -13,6 +13,7 @@ use Gatepost\Postcode\ParseResult;
 use Gatepost\Postcode\Postcode;
 use Gatepost\Postcode\Precision;
 use Gatepost\Postcode\Segments;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -95,5 +96,49 @@ final class PostcodeTest extends TestCase
         self::assertSame(ParseErrorCode::BadSegment, $error->code);
         self::assertSame($segment, $error->segment);
         self::assertSame($suggestion, $error->suggestion);
+    }
+
+    /**
+     * The vectors compare only the canonical form. A wrong compact form can give the same one.
+     */
+    #[Test]
+    public function givesATruncatedCodeTheCompactFormAndPrecisionOfItsSegment(): void
+    {
+        $unit = Postcode::parse('EK-01-A03-FK-01')->value;
+        self::assertNotNull($unit);
+
+        $area = $unit->truncate(Precision::Area);
+
+        self::assertSame('EK01A03FK', $area->compact);
+        self::assertSame(Precision::Area, $area->precision);
+    }
+
+    /**
+     * No vector has a code with a later segment that spells the state. A search for the state
+     * anywhere in the code would pass every vector.
+     */
+    #[Test]
+    public function rejectsACodeWhoseDistrictSpellsTheState(): void
+    {
+        $state = Postcode::parse('FC', allowPartial: true)->value;
+        $code = Postcode::parse('EK-01-FC0-FK-01')->value;
+        self::assertNotNull($state);
+        self::assertNotNull($code);
+
+        self::assertFalse($state->contains($code));
+    }
+
+    #[Test]
+    public function saysHowToFixATruncateToAMorePreciseSegment(): void
+    {
+        $district = Postcode::parse('EK-01-A03', allowPartial: true)->value;
+        self::assertNotNull($district);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Cannot truncate a district postcode to unit. '
+            . 'Choose district or a less precise segment.',
+        );
+        $district->truncate(Precision::Unit);
     }
 }
