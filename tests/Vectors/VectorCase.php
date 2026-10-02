@@ -72,6 +72,24 @@ final class VectorCase
         };
     }
 
+    public function allowPartial(): bool
+    {
+        $allowPartial = $this->case['options']['allowPartial'] ?? false;
+        if (!\is_bool($allowPartial)) {
+            throw new UnexpectedValueException("{$this->id} has a non-boolean allowPartial.");
+        }
+
+        return $allowPartial;
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    public function expected(): array
+    {
+        return $this->case['expect'];
+    }
+
     public function expectedField(string $name): mixed
     {
         if (!\array_key_exists($name, $this->case['expect'])) {

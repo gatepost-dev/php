@@ -11,7 +11,9 @@ use Gatepost\Postcode\Internal\NfkcTable;
 use Gatepost\Postcode\Internal\SpecData;
 
 /**
- * A Nigerian digital postcode, such as EK-01-A03-FK-01.
+ * A Nigerian digital postcode that parse() accepted, such as EK-01-A03-FK-01. Each form holds
+ * the same code. The static methods read text that users type or paste, with no network
+ * access.
  *
  * Unofficial. Not made or endorsed by NIPOST.
  */
@@ -22,8 +24,96 @@ final class Postcode
      */
     public const SPEC_VERSION = '0.1.0';
 
+    // In UTF-8, a code point takes at most 4 bytes. Longer input is over the limit without a
+    // count, so a 10 MB string costs no more than a short one.
+    private const MAX_BYTES_PER_CODE_POINT = 4;
+    private const WITHIN_INPUT_LIMIT = '/\A.{0,' . SpecData::MAX_INPUT_CODE_POINTS . '}\z/su';
     private const LOWER_ASCII = 'abcdefghijklmnopqrstuvwxyz';
     private const UPPER_ASCII = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    private const CODE_CHARACTERS = '/\A[A-Z0-9]+\z/';
+
+    /**
+     * The code with no separators, for example EK01A03FK01.
+     */
+    public readonly string $compact;
+
+    /**
+     * The code with hyphens between segments, for example EK-01-A03-FK-01.
+     */
+    public readonly string $canonical;
+
+    /**
+     * The code with spaces between segments, for example EK 01 A03 FK 01.
+     */
+    public readonly string $display;
+
+    /**
+     * Each segment on its own.
+     */
+    public readonly Segments $segments;
+
+    /**
+     * The most precise segment in the code.
+     */
+    public readonly Precision $precision;
+
+    private function __construct(string $compact, Precision $precision)
+    {
+        $this->compact = $compact;
+        $this->segments = Segments::fromCompact($compact);
+        $parts = \array_filter(
+            $this->segments->toArray(),
+            static fn(?string $part): bool => $part !== null,
+        );
+        $this->canonical = \implode('-', $parts);
+        $this->display = \implode(' ', $parts);
+        $this->precision = $precision;
+    }
+
+    /**
+     * Reads a postcode that a user typed or pasted. It accepts spaces, hyphens, dashes and any
+     * letter case. It never throws. Input over the spec's input limit fails with BadLength
+     * before parse normalises it, so long text cannot stall a server. Input that is not valid
+     * UTF-8 fails with BadCharacter, or with BadLength when it has more than 4 bytes for each
+     * code point of the input limit.
+     *
+     * After normalisation, parse applies these checks in order. The first check that fails
+     * gives the error code: Empty, LegacyCode, BadCharacter and BadLength.
+     *
+     * ```php
+     * $result = Postcode::parse('ek 01 a03 fk 01');
+     * if ($result->isOk()) {
+     *     echo $result->value->canonical; // EK-01-A03-FK-01
+     * }
+     * ```
+     *
+     * @param string $input        Text from a user.
+     * @param bool   $allowPartial Also accept a code that stops after the state, LGA, district
+     *                             or area.
+     */
+    public static function parse(string $input, bool $allowPartial = false): ParseResult
+    {
+        $inputProblem = self::checkInput($input);
+        if ($inputProblem !== null) {
+            return self::failure($inputProblem);
+        }
+        $text = self::normalize($input);
+        if ($text === '') {
+            return self::failure(ParseErrorCode::Empty);
+        }
+        if (\preg_match(SpecData::LEGACY_PATTERN, $text) === 1) {
+            return self::failure(ParseErrorCode::LegacyCode);
+        }
+        if (\preg_match(self::CODE_CHARACTERS, $text) !== 1) {
+            return self::failure(ParseErrorCode::BadCharacter);
+        }
+        $precision = self::precisionOfLength(\strlen($text));
+        if ($precision === null || (!$allowPartial && $precision !== Precision::Unit)) {
+            return self::failure(ParseErrorCode::BadLength);
+        }
+
+        return ParseResult::success(new self($text, $precision));
+    }
 
     /**
      * Cleans text that a user typed or pasted. It applies Unicode NFKC to each character whose
@@ -44,6 +134,22 @@ final class Postcode
         $compatible = \strtr($input, NfkcTable::FORMS);
 
         return self::upperAscii(\strtr($compatible, SpecData::SEPARATORS));
+    }
+
+    /**
+     * Tells whether text is an old 6-digit NIPOST postcode, which names an area, not a
+     * building. It is a thin wrapper over parse(), so it is false for input over the input
+     * limit and for input that is not valid UTF-8.
+     *
+     * ```php
+     * Postcode::isLegacy('900 108'); // true
+     * ```
+     *
+     * @param string $input Text from a user.
+     */
+    public static function isLegacy(string $input): bool
+    {
+        return self::parse($input)->error?->code === ParseErrorCode::LegacyCode;
     }
 
     /**
@@ -87,6 +193,36 @@ final class Postcode
         }
 
         return Precision::from(SpecData::PRECISION_FALLBACK);
+    }
+
+    private static function checkInput(string $input): ?ParseErrorCode
+    {
+        if (\strlen($input) > self::MAX_BYTES_PER_CODE_POINT * SpecData::MAX_INPUT_CODE_POINTS) {
+            return ParseErrorCode::BadLength;
+        }
+
+        // With the u flag, preg_match() returns false for input that is not valid UTF-8.
+        return match (\preg_match(self::WITHIN_INPUT_LIMIT, $input)) {
+            1 => null,
+            0 => ParseErrorCode::BadLength,
+            false => ParseErrorCode::BadCharacter,
+        };
+    }
+
+    private static function precisionOfLength(int $length): ?Precision
+    {
+        foreach (SpecData::SEGMENTS as $name => $segment) {
+            if ($segment['end'] === $length) {
+                return Precision::from($name);
+            }
+        }
+
+        return null;
+    }
+
+    private static function failure(ParseErrorCode $code): ParseResult
+    {
+        return ParseResult::failure(ParseError::of($code));
     }
 
     private static function upperAscii(string $text): string

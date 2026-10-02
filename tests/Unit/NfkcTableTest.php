@@ -9,6 +9,7 @@ namespace Gatepost\Postcode\Tests\Unit;
 
 use Gatepost\Postcode\Internal\NfkcTable;
 use Gatepost\Postcode\Internal\SpecData;
+use Gatepost\Postcode\ParseErrorCode;
 use Gatepost\Postcode\Postcode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -86,5 +87,13 @@ final class NfkcTableTest extends TestCase
         // NFKC changes the micro sign U+00B5 to the Greek letter mu U+03BC. Neither can be part
         // of a postcode, so the table leaves the micro sign out.
         self::assertSame("EK\u{00B5}", Postcode::normalize("ek\u{00B5}"));
+    }
+
+    #[Test]
+    public function rejectsACharacterThatTheTableLeavesOutAsFullNfkcWould(): void
+    {
+        $result = Postcode::parse("EK01A03FK0\u{00B5}");
+
+        self::assertSame(ParseErrorCode::BadCharacter, $result->error?->code);
     }
 }
