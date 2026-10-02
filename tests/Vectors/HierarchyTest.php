@@ -47,6 +47,9 @@ final class HierarchyTest extends TestCase
         $to = Precision::from($vector->field('to'));
         if (\array_key_exists('rejects', $vector->expected())) {
             $this->expectException(InvalidArgumentException::class);
+            $code->truncate($to);
+
+            return;
         }
         $canonical = $code->truncate($to)->canonical;
 

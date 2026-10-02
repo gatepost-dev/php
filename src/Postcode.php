@@ -204,8 +204,7 @@ final class Postcode
     }
 
     /**
-     * Cuts the postcode down to a less precise segment, for example from a building to its
-     * area.
+     * Shortens the postcode to a less precise segment, for example from a building to its area.
      *
      * ```php
      * echo $postcode->truncate(Precision::District)->canonical; // EK-01-A03
@@ -241,6 +240,7 @@ final class Postcode
     public function parent(): ?self
     {
         $larger = null;
+        // SEGMENTS run from the least to the most precise, so the last match is the parent.
         foreach (SpecData::SEGMENTS as $name => $segment) {
             if ($segment['end'] < \strlen($this->compact)) {
                 $larger = Precision::from($name);
@@ -262,6 +262,7 @@ final class Postcode
      */
     public function contains(self $code): bool
     {
+        // A precision has one fixed compact length, so a prefix always ends at a segment boundary.
         return \str_starts_with($code->compact, $this->compact);
     }
 
