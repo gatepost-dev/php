@@ -46,6 +46,13 @@ final class PortabilityTest extends TestCase
         \T_DOUBLE_COLON,
     ];
 
+    // A bare string that holds one of these words is more likely a word of a message than a
+    // callable, so only the code counts it. A string such as 'Locale::getDefault' still counts.
+    private const COMMON_WORDS = [
+        'copy', 'date', 'dir', 'exec', 'file', 'glob', 'mail', 'rand', 'rename', 'sleep', 'stat',
+        'system', 'time', 'touch',
+    ];
+
     /**
      * Names and name prefixes that src must not use, in lower case.
      *
@@ -142,6 +149,14 @@ final class PortabilityTest extends TestCase
             'methods and properties that share the name of a function' => [
                 '$box->file(); $box->time; $box?->date(); Box::rand(); Box::DATE;',
                 [],
+            ],
+            'a common word as a string' => [
+                "\$kind = 'copy'; \$tool = \"system\"; \$id = 'rand';",
+                [],
+            ],
+            'a common word as the class of a callable string' => [
+                "\\call_user_func('Locale::getDefault');",
+                ['locale'],
             ],
             'text that mentions a banned name' => [
                 "throw new \\LogicException('Cannot find the file at this time.');",
@@ -256,7 +271,8 @@ final class PortabilityTest extends TestCase
             $isName = \in_array($id, self::NAME_TOKENS, true)
                 && !\in_array($previous, self::MEMBER_OPERATORS, true);
             $previous = $id;
-            $name = $isName ? self::bannedName($text, $lookup) : null;
+            $isString = $id === \T_CONSTANT_ENCAPSED_STRING;
+            $name = $isName ? self::bannedName($text, $lookup, $isString) : null;
             if ($name !== null) {
                 $found[] = [$name, $line];
             }
@@ -268,10 +284,13 @@ final class PortabilityTest extends TestCase
     /**
      * @param array{array<string, int>, string} $lookup
      */
-    private static function bannedName(string $text, array $lookup): ?string
+    private static function bannedName(string $text, array $lookup, bool $isString): ?string
     {
         [$banned, $prefixPattern] = $lookup;
         foreach (self::spellings($text) as $name) {
+            if ($isString && \in_array($name, self::COMMON_WORDS, true)) {
+                continue;
+            }
             if (isset($banned[$name]) || \preg_match($prefixPattern, $name) === 1) {
                 return $name;
             }
