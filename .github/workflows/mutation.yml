@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+name: mutation
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    # A run takes a few minutes. The limit stops a run that hangs.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          coverage: xdebug
+      - run: composer install --no-interaction --no-progress
+      - run: composer --working-dir=tools/infection install --no-interaction --no-progress
+      # GenerateDataTest reads the UnicodeData.txt that this command downloads and checks.
+      - run: composer generate:check
+      - run: composer mutation

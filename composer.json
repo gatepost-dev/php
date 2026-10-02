@@ -52,6 +52,7 @@
             "@changes:check",
             "@licences",
             "@secrets",
+            "@workflows:check",
             "@tells"
         ],
         "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
@@ -59,7 +60,7 @@
         "cs:check": "php-cs-fixer fix --dry-run --diff",
         "generate": "@php scripts/generate-data.php",
         "generate:check": "@php scripts/generate-data.php --check",
-        "licences": "uvx --with charset-normalizer reuse@6.2.0 lint",
+        "licences": "uvx --with charset-normalizer==3.5.2 reuse@6.2.0 lint",
         "mutation": [
             "@putenv XDEBUG_MODE=coverage",
             "tools/infection/vendor/bin/infection --threads=max"
@@ -73,7 +74,8 @@
             "@putenv XDEBUG_MODE=coverage",
             "phpunit --path-coverage --coverage-cobertura build/coverage/cobertura.xml",
             "@php scripts/check-coverage.php build/coverage/cobertura.xml"
-        ]
+        ],
+        "workflows:check": "uvx zizmor@1.30.1 --offline .github/workflows"
     },
     "scripts-descriptions": {
         "api:check": "Compare the public API with the newest release tag.",
@@ -91,6 +93,7 @@
         "secrets": "Scan the git history for secrets.",
         "tells": "Check for agent tells.",
         "test": "Run the tests.",
-        "test:coverage": "Run the tests with branch coverage. They need Xdebug."
+        "test:coverage": "Run the tests with branch coverage. They need Xdebug.",
+        "workflows:check": "Check the workflows with zizmor."
     }
 }
