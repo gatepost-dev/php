@@ -32,7 +32,9 @@ abstract class DumpApiTestCase extends TestCase
         $this->repo = TemporaryFolder::create('gatepost-dump-api-');
         \mkdir("{$this->repo}/scripts");
         \mkdir("{$this->repo}/docs");
-        \copy(\dirname(__DIR__, 2) . '/scripts/dump-api.php', "{$this->repo}/scripts/dump-api.php");
+        foreach (['dump-api.php', 'dump-api-symbols.php'] as $script) {
+            \copy(\dirname(__DIR__, 2) . "/scripts/{$script}", "{$this->repo}/scripts/{$script}");
+        }
         \file_put_contents("{$this->repo}/composer.json", \json_encode([
             'name' => 'fixture/api',
             'autoload' => ['psr-4' => [self::FIXTURE_NAMESPACE . '\\' => 'src/']],

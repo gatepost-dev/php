@@ -36,6 +36,7 @@ final class Square extends Base
     public function area(): float;
     public function name(): string;
     public static function of(float $side = 2.5): self;
+    public function twin(self $other): self;
     public function join(string ...$parts): string;
     public function swap(int &$left, int &$right): void;
     public function scale(int|float $factor): static;

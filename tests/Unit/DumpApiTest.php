@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode\Tests\Unit;
 
+use Gatepost\Postcode\Tests\ScriptRun;
 use PHPUnit\Framework\Attributes\Test;
 
 /**
@@ -25,6 +26,15 @@ final class DumpApiTest extends DumpApiTestCase
         self::assertSame('', $run->output);
         $expected = \file_get_contents(\dirname(__DIR__) . '/Fixtures/ApiDump/expected.md');
         self::assertSame($expected, $this->dumpFile());
+    }
+
+    // The tests job of CI runs this on each PHP version, and the dump must not depend on it.
+    #[Test]
+    public function writesTheCommittedDumpOfThisPackageOnEachPhpVersion(): void
+    {
+        $run = ScriptRun::of(\PHP_BINARY, 'scripts/dump-api.php', '--check');
+
+        self::assertSame(0, $run->exitCode, $run->output);
     }
 
     #[Test]

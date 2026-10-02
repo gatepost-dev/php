@@ -35,6 +35,12 @@ final class Square extends Base
         return new self($side);
     }
 
+    // PHP 8.5 reports self as the class name, so a type that names the class must read as self.
+    public function twin(Square $other): Square
+    {
+        return $other;
+    }
+
     public function join(string ...$parts): string
     {
         return \implode(',', $parts);
