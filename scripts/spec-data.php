@@ -6,7 +6,8 @@
 declare(strict_types=1);
 
 // Reads the JSON files in spec/data and builds SpecData.php for scripts/generate-data.php.
-// Each reader throws on data of an unexpected shape, so a broken data file stops the build.
+// Each reader throws on data of an unexpected shape, or on a state code, a segment name or a
+// separator that appears twice, so a broken data file stops the build.
 
 namespace Gatepost\Postcode\Scripts;
 
@@ -32,12 +33,18 @@ const FIX_CHARACTERS = [
  */
 function readJson(string $path): array
 {
-    // A missing file gives false here, so the clear message below replaces a PHP warning.
-    $text = \is_file($path) ? \file_get_contents($path) : false;
+    // A file that is missing or that no user can read gives false here, so the clear message
+    // below replaces a PHP warning.
+    $text = \is_file($path) && \is_readable($path) ? \file_get_contents($path) : false;
     if ($text === false) {
-        throw new RuntimeException("Cannot read {$path}. Run git submodule update --init.");
+        throw new RuntimeException(
+            "Cannot read {$path}. Run git submodule update --init, or check the permissions.",
+        );
     }
-    $decoded = \json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+    $decoded = \json_decode($text, true);
+    if ($decoded === null && \json_last_error() !== JSON_ERROR_NONE) {
+        throw new RuntimeException("{$path} is not valid JSON: " . \json_last_error_msg() . '.');
+    }
     if (!\is_array($decoded) || ($decoded['version'] ?? null) !== DATA_VERSION) {
         throw new RuntimeException("{$path} must hold an object with version " . DATA_VERSION);
     }
@@ -74,6 +81,20 @@ function text(mixed $value, string $where): string
     return $value;
 }
 
+// The generated class is an array, and a repeated key would keep only the last value. So a value
+// that appears twice stops the build.
+/**
+ * @param list<string> $values
+ */
+function rejectRepeats(array $values, string $file, string $what): void
+{
+    foreach (\array_count_values($values) as $value => $count) {
+        if ($count > 1) {
+            throw new RuntimeException("{$file}: the {$what} {$value} appears more than once.");
+        }
+    }
+}
+
 function wholeNumber(mixed $value, string $where): int
 {
     if (!\is_int($value) || $value < 0) {
@@ -108,7 +129,7 @@ function separatorCodePoints(mixed $labels): array
         throw new RuntimeException('separators must be a list with at least one label.');
     }
 
-    return \array_map(static function (mixed $label): int {
+    $codePoints = \array_map(static function (mixed $label): int {
         if (!\is_string($label) || \preg_match('/\AU\+([0-9A-F]{4,6})\z/', $label, $hex) !== 1) {
             throw new RuntimeException(
                 FORMAT_FILE . ': each separator must be written as U+ and 4 to 6 hex digits, '
@@ -126,6 +147,14 @@ function separatorCodePoints(mixed $labels): array
 
         return $codePoint;
     }, $labels);
+    // Two labels can name one code point, such as U+002D and U+00002D.
+    $labelsOfCodePoints = \array_map(
+        static fn(int $codePoint): string => \sprintf('U+%04X', $codePoint),
+        $codePoints,
+    );
+    rejectRepeats($labelsOfCodePoints, FORMAT_FILE, 'separator');
+
+    return $codePoints;
 }
 
 /**
@@ -200,12 +229,17 @@ function legacyPattern(mixed $pattern): string
 function stateEntries(string $root): array
 {
     $states = readJson("{$root}/" . STATES_FILE)['states'] ?? null;
+    $codes = [];
+    $entries = [];
+    foreach (objects($states, 'states') as $state) {
+        $code = text($state['code'] ?? null, 'state code');
+        $codes[] = $code;
+        $name = quoted(text($state['name'] ?? null, 'state name'));
+        $entries[] = ENTRY . quoted($code) . " => {$name},";
+    }
+    rejectRepeats($codes, STATES_FILE, 'state code');
 
-    return \array_map(static function (array $state): string {
-        $code = quoted(text($state['code'] ?? null, 'state code'));
-
-        return ENTRY . "{$code} => " . quoted(text($state['name'] ?? null, 'state name')) . ',';
-    }, objects($states, 'states'));
+    return $entries;
 }
 
 /**
@@ -214,14 +248,17 @@ function stateEntries(string $root): array
 function segmentEntries(mixed $segments): array
 {
     $entries = [];
+    $names = [];
     $start = 0;
     foreach (objects($segments, 'segments') as $segment) {
         $end = $start + wholeNumber($segment['length'] ?? null, 'segment length');
         $minimum = $segment['minimum'] ?? null;
+        $name = choice($segment['name'] ?? null, PRECISIONS, 'segment name');
+        $names[] = $name;
         $entries[] = ENTRY . \sprintf(
             "%s => ['start' => %d, 'length' => %d, 'end' => %d, "
             . "'characters' => %s, 'minimum' => %s],",
-            quoted(choice($segment['name'] ?? null, PRECISIONS, 'segment name')),
+            quoted($name),
             $start,
             $end - $start,
             $end,
@@ -230,6 +267,7 @@ function segmentEntries(mixed $segments): array
         );
         $start = $end;
     }
+    rejectRepeats($names, FORMAT_FILE, 'segment name');
 
     return $entries;
 }

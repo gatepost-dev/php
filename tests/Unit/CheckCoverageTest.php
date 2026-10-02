@@ -32,6 +32,10 @@ final class CheckCoverageTest extends TestCase
                 'no-code.xml',
                 'The report has no branches, so there is nothing to cover.',
             ],
+            'a class of constants next to covered code' => [
+                'constants-class.xml',
+                'Branch coverage is 95.00 % (19 of 20).',
+            ],
         ];
     }
 
@@ -58,6 +62,10 @@ final class CheckCoverageTest extends TestCase
             'lines and a branch count of zero' => ['no-branch-data.xml', 'no branch data'],
             'lines and no branch attributes' => ['no-branch-attributes.xml', 'no branch data'],
             'a class that no test runs' => ['unrun-class.xml', 'Gatepost\Postcode\Neglected'],
+            'a class with one path that no test runs' => [
+                'unrun-straight-class.xml',
+                'Gatepost\Postcode\Straight',
+            ],
         ];
     }
 

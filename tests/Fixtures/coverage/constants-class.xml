@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Gatepost authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- The tests cover 19 of 20 branches. A class of constants has no line and a complexity of 0, so
+    no test needs to run it, and it does not count as a class that no test runs. -->
+<coverage line-rate="1" branch-rate="0.95" lines-covered="40" lines-valid="40"
+    branches-covered="19" branches-valid="20" complexity="12" version="0.4" timestamp="1">
+  <packages>
+    <package name="Covered.php" line-rate="1" branch-rate="0.95" complexity="12">
+      <classes>
+        <class name="Gatepost\Postcode\Covered" filename="Covered.php"
+            line-rate="1" branch-rate="0.95" complexity="12"/>
+      </classes>
+    </package>
+    <package name="Constants.php" line-rate="0" branch-rate="0" complexity="0">
+      <classes>
+        <class name="Gatepost\Postcode\Constants" filename="Constants.php"
+            line-rate="0" branch-rate="0" complexity="0"/>
+      </classes>
+    </package>
+  </packages>
+</coverage>

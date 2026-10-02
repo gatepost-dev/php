@@ -83,6 +83,26 @@ abstract class GeneratorTestCase extends TestCase
     }
 
     /**
+     * Breaks the data, runs the generator, and checks that it stops with the reason, prints no PHP
+     * warning and leaves the old classes as they were.
+     *
+     * @param Closure(string): void $breakData
+     */
+    protected function assertStopsOnBrokenData(Closure $breakData, string $reason): void
+    {
+        $this->generate();
+        $old = $this->generatedClasses();
+        $breakData($this->root);
+
+        $run = $this->generate();
+
+        self::assertNotSame(0, $run->exitCode, $run->output);
+        self::assertStringContainsString($reason, $run->output);
+        self::assertStringNotContainsString('Warning', $run->output);
+        self::assertSame($old, $this->generatedClasses());
+    }
+
+    /**
      * @return array<string, string> The written classes by path. A class that the root lacks has
      *                               no entry.
      */

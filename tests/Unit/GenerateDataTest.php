@@ -226,16 +226,7 @@ final class GenerateDataTest extends GeneratorTestCase
         Closure $breakData,
         string $reason,
     ): void {
-        $this->generate();
-        $old = $this->generatedClasses();
-        $breakData($this->root);
-
-        $run = $this->generate();
-
-        self::assertNotSame(0, $run->exitCode, $run->output);
-        self::assertStringContainsString($reason, $run->output);
-        self::assertStringNotContainsString('Warning', $run->output);
-        self::assertSame($old, $this->generatedClasses());
+        $this->assertStopsOnBrokenData($breakData, $reason);
     }
 
     /**

@@ -38,6 +38,28 @@ final class CheckCommitMsgTest extends TestCase
                     self::SIGN_OFF,
                 ),
             ],
+            // The check reads the address, so the first name of a person is no reason to refuse.
+            'a co-author line for a person named Claude' => [
+                self::message(
+                    self::SUBJECT,
+                    'Co-authored-by: Claude Monet <claude.monet@example.com>',
+                    self::SIGN_OFF,
+                ),
+            ],
+            'a co-author line for a person named Copilot' => [
+                self::message(
+                    self::SUBJECT,
+                    'Co-authored-by: Copilot Jones <copilot.jones@example.com>',
+                    self::SIGN_OFF,
+                ),
+            ],
+            'a co-author line for a person who works at an AI company' => [
+                self::message(
+                    self::SUBJECT,
+                    'Co-authored-by: Jane Doe <jane.doe@anthropic.com>',
+                    self::SIGN_OFF,
+                ),
+            ],
         ];
     }
 
@@ -78,7 +100,7 @@ final class CheckCommitMsgTest extends TestCase
                 ),
                 'Co-Authored-By',
             ],
-            'a co-author line that names Anthropic' => [
+            'a co-author line with the address of Claude and another name' => [
                 self::message(
                     self::SUBJECT,
                     'Co-authored-by: Assistant <noreply@anthropic.com>',
@@ -89,12 +111,12 @@ final class CheckCommitMsgTest extends TestCase
             'a co-author line for Copilot' => [
                 self::message(
                     self::SUBJECT,
-                    'Co-authored-by: Copilot <copilot@example.com>',
+                    'Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>',
                     self::SIGN_OFF,
                 ),
                 'Co-Authored-By',
             ],
-            'a co-author line that names OpenAI' => [
+            'a co-author line for Codex' => [
                 self::message(
                     self::SUBJECT,
                     'Co-authored-by: Codex <codex@openai.com>',
@@ -102,10 +124,26 @@ final class CheckCommitMsgTest extends TestCase
                 ),
                 'Co-Authored-By',
             ],
+            'a co-author line for Cursor' => [
+                self::message(
+                    self::SUBJECT,
+                    'Co-authored-by: Cursor Agent <cursoragent@cursor.com>',
+                    self::SIGN_OFF,
+                ),
+                'Co-Authored-By',
+            ],
+            'a co-author line for Aider' => [
+                self::message(
+                    self::SUBJECT,
+                    'Co-authored-by: aider (gpt-4o) <noreply@aider.chat>',
+                    self::SIGN_OFF,
+                ),
+                'Co-Authored-By',
+            ],
             'a co-author line in lower case' => [
                 self::message(
                     self::SUBJECT,
-                    'co-authored-by: claude <claude@example.com>',
+                    'co-authored-by: claude <noreply@anthropic.com>',
                     self::SIGN_OFF,
                 ),
                 'Co-Authored-By',

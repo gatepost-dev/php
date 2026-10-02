@@ -18,7 +18,12 @@ if ! grep -Eiq '^signed-off-by: .+ <.+>' "$1"; then
   echo "Add a Signed-off-by line with a name and an email address. Use git commit -s (GIT-2)." >&2
   exit 1
 fi
-if grep -Eiq '^co-authored-by:.*(claude|anthropic|copilot|openai)' "$1"; then
+# A person can be named Claude or Copilot, so the check reads the address of the trailer. Each
+# address is one that an AI tool writes there. To refuse a new tool, add its address here and a
+# row to CheckCommitMsgTest.
+ai_addresses='noreply@anthropic\.com|codex@openai\.com|noreply@aider\.chat|cursoragent@cursor\.com'
+ai_addresses="${ai_addresses}|[0-9]+\+copilot@users\.noreply\.github\.com"
+if grep -Eiq "^co-authored-by:.*[ <](${ai_addresses})([> ]|\$)" "$1"; then
   echo "Remove the Co-Authored-By line for an AI tool (GIT-3)." >&2
   exit 1
 fi
