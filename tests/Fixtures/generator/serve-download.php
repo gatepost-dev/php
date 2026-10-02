@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode\Tests\Fixtures;
 
-// GenerateDataTest starts the generator with this file as auto_prepend_file. It replaces the
+// GenerateNfkcTableTest starts the generator with this file as auto_prepend_file. It replaces the
 // https wrapper, so the download of UnicodeData.txt reads the file served-download next to this
 // one and never uses the network. The anonymous class keeps this file out of the PSR-4 map.
 

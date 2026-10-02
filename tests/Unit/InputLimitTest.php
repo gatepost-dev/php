@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 final class InputLimitTest extends TestCase
 {
     /**
-     * Byte strings that are not valid UTF-8, each 256 bytes or shorter.
+     * Short byte strings that are not valid UTF-8. Each one breaks UTF-8 in a different way.
      *
      * @return array<string, array{string}>
      */
@@ -71,6 +71,26 @@ final class InputLimitTest extends TestCase
     public function rejectsMoreThan256BytesOfInvalidUtf8AsOverTheInputLimit(): void
     {
         $result = Postcode::parse(\str_repeat("\xFF", 257));
+
+        self::assertSame(ParseErrorCode::BadLength, $result->error?->code);
+    }
+
+    #[Test]
+    public function rejectsInvalidUtf8UpTo256BytesAsABadCharacter(): void
+    {
+        // Both strings have more bytes than the input limit has code points. The limit for
+        // invalid text is 4 bytes for each of those code points, so 256 bytes.
+        $aboveTheCodePointLimit = Postcode::parse(\str_repeat('A', 70) . "\xFF");
+        $atTheByteLimit = Postcode::parse(\str_repeat('A', 255) . "\xFF");
+
+        self::assertSame(ParseErrorCode::BadCharacter, $aboveTheCodePointLimit->error?->code);
+        self::assertSame(ParseErrorCode::BadCharacter, $atTheByteLimit->error?->code);
+    }
+
+    #[Test]
+    public function rejectsInvalidUtf8WithOneByteOver256AsOverTheInputLimit(): void
+    {
+        $result = Postcode::parse(\str_repeat('A', 256) . "\xFF");
 
         self::assertSame(ParseErrorCode::BadLength, $result->error?->code);
     }

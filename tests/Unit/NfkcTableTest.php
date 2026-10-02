@@ -18,7 +18,8 @@ use PHPUnit\Framework\TestCase;
 final class NfkcTableTest extends TestCase
 {
     /**
-     * Characters from several Unicode blocks, with the ASCII text that NFKC gives for each.
+     * Characters from several Unicode blocks, with the form that NFKC gives for each. The form
+     * is ASCII text, or a separator that normalize() removes in its next step.
      *
      * @return array<string, array{string, string}>
      */
@@ -35,6 +36,8 @@ final class NfkcTableTest extends TestCase
             'a Roman numeral 12' => ["\u{216B}", 'XII'],
             'a horizontal ellipsis' => ["\u{2026}", '...'],
             'the Kelvin sign' => ["\u{212A}", 'K'],
+            'a subscript minus' => ["\u{208B}", "\u{2212}"],
+            'a vertical em dash' => ["\u{FE31}", "\u{2014}"],
         ];
     }
 
