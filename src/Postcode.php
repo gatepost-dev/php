@@ -61,12 +61,12 @@ final class Postcode
     {
         $this->compact = $compact;
         $this->segments = Segments::fromCompact($compact);
-        $parts = \array_filter(
+        $present = \array_filter(
             $this->segments->toArray(),
-            static fn(?string $part): bool => $part !== null,
+            static fn(?string $text): bool => $text !== null,
         );
-        $this->canonical = \implode('-', $parts);
-        $this->display = \implode(' ', $parts);
+        $this->canonical = \implode('-', $present);
+        $this->display = \implode(' ', $present);
         $this->precision = $precision;
     }
 

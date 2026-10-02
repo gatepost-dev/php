@@ -48,8 +48,8 @@ final class SegmentRules
 
             return ParseError::of(ParseErrorCode::UnknownState, Precision::State, $suggestion);
         }
-        foreach ($segments->toArray() as $name => $part) {
-            if ($part !== null && !self::follows($part, SpecData::SEGMENTS[$name])) {
+        foreach ($segments->toArray() as $name => $text) {
+            if ($text !== null && !self::follows($text, SpecData::SEGMENTS[$name])) {
                 $segment = Precision::from($name);
                 $suggestion = self::suggest($segments, $compact, $allowPartial);
 
@@ -63,25 +63,27 @@ final class SegmentRules
     /**
      * @param array{characters: key-of<self::PATTERNS>, minimum: ?int} $rule
      */
-    private static function follows(string $part, array $rule): bool
+    private static function follows(string $text, array $rule): bool
     {
-        if (\preg_match(self::PATTERNS[$rule['characters']], $part) !== 1) {
+        if (\preg_match(self::PATTERNS[$rule['characters']], $text) !== 1) {
             return false;
         }
 
-        return $rule['minimum'] === null || (int) $part >= $rule['minimum'];
+        return $rule['minimum'] === null || (int) $text >= $rule['minimum'];
     }
 
     // A suggestion is a hint for the user. parse never returns the fixed code as a success.
+    // The nested parse stops after one level. A fix table never writes a character that it
+    // changes, so a fixed code has nothing left to fix, and the second suggest() returns null.
     private static function suggest(
         Segments $segments,
         string $compact,
         bool $allowPartial,
     ): ?string {
         $fixed = '';
-        foreach ($segments->toArray() as $name => $part) {
-            if ($part !== null) {
-                $fixed .= \strtr($part, self::FIXES[SpecData::SEGMENTS[$name]['characters']]);
+        foreach ($segments->toArray() as $name => $text) {
+            if ($text !== null) {
+                $fixed .= \strtr($text, self::FIXES[SpecData::SEGMENTS[$name]['characters']]);
             }
         }
         if ($fixed === $compact) {
