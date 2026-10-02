@@ -22,17 +22,15 @@ use Throwable;
  * property-testing tool, so a seeded Mersenne Twister makes the inputs. The fixed seed gives the
  * same inputs in each run, so a failure always repeats.
  *
- * Under Xdebug path coverage, each assertion costs a few milliseconds, and the cost grows with
- * the number of assertions that the run has made. A loop with several assertions in each of 500
- * runs more than doubled the time of composer check. So the properties with the most checks
- * collect the inputs that break the rule, and the test asserts once.
+ * Assertions are slow under Xdebug path coverage, so the properties with the most checks collect
+ * the inputs that break the rule and assert once.
  */
 final class PropertiesTest extends TestCase
 {
     private const SEED = 20261002;
     private const RUNS = 500;
     private const SHOWN_VIOLATIONS = 5;
-    // The pool of the third property holds this many codes, each with a typo and an old code.
+    // The pool of the third property holds this many codes, each with a typo and a legacy postcode.
     private const CODE_PIECES = 20;
     private const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     private const DIGITS = '0123456789';
@@ -192,7 +190,7 @@ final class PropertiesTest extends TestCase
     }
 
     /**
-     * Whole codes cut after a random segment, a typo of each, and old 6-digit codes. A code that
+     * Whole codes cut after a random segment, a typo of each, and legacy postcodes. A code that
      * stops after a segment parses only with allowPartial.
      *
      * @return list<string>

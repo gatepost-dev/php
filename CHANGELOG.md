@@ -6,4 +6,4 @@ This file lists each notable change to `gatepost/postcode`. The format follows [
 
 ### Added
 
-- Add the offline core of spec 0.1.0: parse, normalize, isLegacy and more.
+- Add the offline core of spec 0.1.0: parse, normalize, isLegacy, stateName, precisionForAccuracy, truncate, parent, contains and redact.

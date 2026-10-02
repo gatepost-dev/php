@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode\Tests\Unit;
 
+use Composer\Semver\Semver;
 use Gatepost\Postcode\Internal\SpecData;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -52,6 +53,31 @@ final class ReadmeTest extends TestCase
         }
     }
 
+    /**
+     * @return array<string, array{string, string, bool}>
+     */
+    public static function constraintsAndVersions(): array
+    {
+        return [
+            'an alpha in the range, with the flag' => ['^0.1@alpha', '0.1.0-alpha.0', true],
+            'a stable release in the range' => ['^0.1@alpha', '0.1.3', true],
+            'an alpha of the next minor version' => ['^0.1@alpha', '0.2.0-alpha.0', false],
+            'an alpha, with no flag' => ['^0.1', '0.1.0-alpha.0', false],
+            'a stable release, with no flag' => ['^0.1', '0.1.1', true],
+            'a release below the range' => ['^1.0', '0.9.0', false],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('constraintsAndVersions')]
+    public function readsWhichVersionsAConstraintAllows(
+        string $constraint,
+        string $version,
+        bool $allowed,
+    ): void {
+        self::assertSame($allowed, self::constraintAllows($constraint, $version));
+    }
+
     #[Test]
     public function listsEachPhpExampleOfTheReadmeInTheTest(): void
     {
@@ -78,11 +104,15 @@ final class ReadmeTest extends TestCase
     {
         $found = \preg_match('/^## (\S+) - /m', self::repoFile('CHANGELOG.md'), $newest);
         self::assertSame(1, $found, 'The changelog has no release.');
-        $pattern = '/^composer require gatepost\/postcode\S*$/m';
+        $pattern = '/^composer require gatepost\/postcode(?::(\S+))?$/m';
         $found = \preg_match($pattern, self::section('Install'), $command);
         self::assertSame(1, $found, 'The Install section has no composer require line.');
+        $constraint = $command[1] ?? '*';
 
-        self::assertStringContainsString(self::stabilityFlag($newest[1]), $command[0]);
+        self::assertTrue(
+            self::constraintAllows($constraint, $newest[1]),
+            "The install constraint {$constraint} does not allow the newest release {$newest[1]}.",
+        );
     }
 
     private static function repoFile(string $name): string
@@ -93,7 +123,14 @@ final class ReadmeTest extends TestCase
         return $contents;
     }
 
-    // Composer installs only stable releases, unless the constraint names the stability.
+    // Composer installs a pre-release only when the constraint names its stability, such as @alpha.
+    // The version must also lie in the range of the constraint.
+    private static function constraintAllows(string $constraint, string $version): bool
+    {
+        return \str_contains($constraint, self::stabilityFlag($version))
+            && Semver::satisfies($version, $constraint);
+    }
+
     private static function stabilityFlag(string $version): string
     {
         return \preg_match('/-(alpha|beta|rc)\b/i', $version, $label) === 1 ? '@' . $label[1] : '';

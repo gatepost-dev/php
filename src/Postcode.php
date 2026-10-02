@@ -124,7 +124,7 @@ final class Postcode
     }
 
     /**
-     * Cleans text that a user typed or pasted. It applies Unicode NFKC to each character whose
+     * Normalises text that a user typed or pasted. It applies Unicode NFKC to each character whose
      * NFKC form holds only ASCII characters and separators, such as full-width letters. It
      * removes the separators that the spec lists: white space, hyphens and dashes, the full
      * stop and some zero-width characters. Then it makes the ASCII letters a to z upper case.

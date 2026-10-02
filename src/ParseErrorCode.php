@@ -22,7 +22,10 @@ enum ParseErrorCode: string
     /** A character other than A to Z and 0 to 9 is left, or the input is not valid UTF-8. */
     case BadCharacter = 'bad_character';
 
-    /** The input is over the input limit, or the code has a length that no form has. */
+    /**
+     * The input is over the input limit, or the code has a length that parse does not accept
+     * with these options.
+     */
     case BadLength = 'bad_length';
 
     /** The first two characters are not a state code. */

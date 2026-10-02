@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Gatepost\Postcode\Tests\Unit;
 
 use Gatepost\Postcode\Tests\ScriptRun;
+use Gatepost\Postcode\Tests\TemporaryFolder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -25,9 +26,7 @@ final class CheckApiTest extends TestCase
 
     protected function setUp(): void
     {
-        $repo = \tempnam(\sys_get_temp_dir(), 'gatepost-api-');
-        self::assertIsString($repo);
-        \unlink($repo);
+        $repo = TemporaryFolder::create('gatepost-api-');
         $this->repo = $repo;
         $stub = "{$repo}/tools/bc-check/vendor/bin/roave-backward-compatibility-check";
         \mkdir(\dirname($stub), 0o777, true);
@@ -37,7 +36,7 @@ final class CheckApiTest extends TestCase
 
     protected function tearDown(): void
     {
-        ScriptRun::of('rm', '-rf', $this->repo);
+        TemporaryFolder::remove($this->repo);
     }
 
     /**

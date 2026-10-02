@@ -8,12 +8,9 @@ declare(strict_types=1);
 namespace Gatepost\Postcode\Tests\Unit;
 
 use Closure;
-use FilesystemIterator;
 use Gatepost\Postcode\Tests\ScriptRun;
+use Gatepost\Postcode\Tests\TemporaryFolder;
 use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
 
 /**
  * The harness for the tests of the generator. The generator takes its root from __DIR__, so each
@@ -34,9 +31,7 @@ abstract class GeneratorTestCase extends TestCase
 
     protected function setUp(): void
     {
-        $root = \tempnam(\sys_get_temp_dir(), 'gatepost-generator-');
-        self::assertIsString($root);
-        \unlink($root);
+        $root = TemporaryFolder::create('gatepost-generator-');
         $this->root = $root;
         self::copyFiles(\dirname(__DIR__, 2) . '/scripts/*.php', "{$root}/scripts");
         self::copyFiles(
@@ -54,21 +49,7 @@ abstract class GeneratorTestCase extends TestCase
 
     protected function tearDown(): void
     {
-        $items = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST,
-        );
-        foreach ($items as $item) {
-            if (!$item instanceof SplFileInfo) {
-                continue;
-            }
-            if ($item->isDir()) {
-                \rmdir($item->getPathname());
-            } else {
-                \unlink($item->getPathname());
-            }
-        }
-        \rmdir($this->root);
+        TemporaryFolder::remove($this->root);
     }
 
     protected function generate(string ...$arguments): ScriptRun
