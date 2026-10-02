@@ -27,7 +27,7 @@ The second segment. Two digits that name a local government area within a state.
 _Avoid_: council, local government, municipality
 
 **District**:
-The third segment. Three characters that name a district within an LGA. NIPOST uses districts for postal sorting.
+The third segment. Three characters that name a district within an LGA.
 _Avoid_: sorting code, sector
 
 **Area**:
@@ -77,6 +77,14 @@ _Avoid_: max length, length limit, size limit
 The canonical form that `parse` offers with `unknown_state` or `bad_segment`, when a fix of look-alike characters makes the code parse. It is a hint, never a success. The word means this hint from `parse`. It does not mean the suggestions that NIPOST's autocomplete API returns.
 _Avoid_: correction, autocorrect
 
+**Parse result**:
+What `parse` returns: a postcode, or a parse error. The Interface section of `grammar.md` defines its fields.
+_Avoid_: outcome, response
+
+**Parse error**:
+The reason that `parse` rejected its input. It has a code, the failing segment and a suggestion. It is a value that `parse` returns, not an exception.
+_Avoid_: validation error, exception
+
 ### NIPOST's API
 
 **Gateway**:
@@ -114,7 +122,7 @@ _Avoid_: using this word for a Gatepost component
 ### Gatepost
 
 **Spec**:
-The `spec` repo, which holds the grammar, the vectors, the fixtures, the completed OpenAPI file and these standards.
+The `spec` repo. It holds the grammar, the data, the vectors and the standards. The API fixtures and the completed OpenAPI file come later.
 _Avoid_: schema, contract (for the repo)
 
 **Vector**:
