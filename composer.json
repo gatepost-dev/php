@@ -39,6 +39,7 @@
         "api:check": "scripts/check-api.sh",
         "changes:check": "changie merge --dry-run | cmp - CHANGELOG.md",
         "check": [
+            "@generate:check",
             "@context:check",
             "@composer validate --strict",
             "@composer normalize --dry-run",
@@ -56,6 +57,8 @@
         "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
         "cs": "php-cs-fixer fix",
         "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "generate": "@php scripts/generate-data.php",
+        "generate:check": "@php scripts/generate-data.php --check",
         "licences": "uvx --with charset-normalizer reuse@6.2.0 lint",
         "mutation": [
             "@putenv XDEBUG_MODE=coverage",
@@ -79,6 +82,8 @@
         "context:check": "Check that CONTEXT.md matches the copy in the spec.",
         "cs": "Fix the code style.",
         "cs:check": "Check the code style.",
+        "generate": "Write the generated classes in src/Internal.",
+        "generate:check": "Check that the generated classes are up to date.",
         "licences": "Check the licence information of each file.",
         "mutation": "Run the mutation tests. They need Xdebug.",
         "phpmd": "Check size and complexity. 24575 hides the PHP 8.4 notices of PHPMD itself.",
