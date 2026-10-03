@@ -27,6 +27,9 @@ final class ArrayCache implements CacheInterface
     /** A failure that get() throws, as a broken store does. */
     public ?Throwable $getFails = null;
 
+    /** A failure that get() throws for each key except the generation key of the client. */
+    public ?Throwable $entryGetFails = null;
+
     /** A failure that set() throws. */
     public ?Throwable $setFails = null;
 
@@ -34,6 +37,9 @@ final class ArrayCache implements CacheInterface
     {
         if ($this->getFails !== null) {
             throw $this->getFails;
+        }
+        if ($this->entryGetFails !== null && $key !== 'gatepost.generation') {
+            throw $this->entryGetFails;
         }
 
         return \array_key_exists($key, $this->entries) ? $this->entries[$key] : $default;

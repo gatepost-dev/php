@@ -78,6 +78,18 @@ final class LookupResultTest extends TestCase
             'a building use status' => [['building_use_status' => 'residential'], 3],
             'other building information' => [['other_building_info' => ['floors' => 2]], 4],
             'a point geometry' => [['point_geometry' => ['type' => 'Point']], 5],
+            'the fields of levels 2 and 3' => [
+                ['recent_house_address' => ['recent' => 'SYNTHETIC'], 'building_use_status' => 'x'],
+                3,
+            ],
+            'the fields of levels 3 and 4' => [
+                ['building_use_status' => 'residential', 'other_building_info' => ['floors' => 2]],
+                4,
+            ],
+            'the fields of levels 4 and 5' => [
+                ['other_building_info' => ['floors' => 2], 'point_geometry' => ['type' => 'Point']],
+                5,
+            ],
             'a field of level 2 that is null' => [['administrative_address' => null], 1],
         ];
     }

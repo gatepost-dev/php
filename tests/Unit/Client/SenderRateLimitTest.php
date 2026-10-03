@@ -80,6 +80,18 @@ final class SenderRateLimitTest extends SenderTestCase
                 ['Retry-After' => 'Fri Oct 12 09:00:03 2026'],
                 null,
             ],
+            'a date that rolls over, with the weekday of the new date' => [
+                ['Retry-After' => 'Wed, 31 Feb 2027 09:00:03 GMT'],
+                null,
+            ],
+            'a date with a minute of 60' => [
+                ['Retry-After' => 'Mon, 12 Oct 2026 09:60:03 GMT'],
+                null,
+            ],
+            'a date with a month that does not exist' => [
+                ['Retry-After' => 'Mon, 12 Foo 2026 09:00:03 GMT'],
+                null,
+            ],
             'a date with a lower case month' => [
                 ['Retry-After' => 'Mon, 12 oct 2026 09:00:03 GMT'],
                 null,

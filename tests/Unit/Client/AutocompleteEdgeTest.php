@@ -38,6 +38,31 @@ final class AutocompleteEdgeTest extends TestCase
     }
 
     #[Test]
+    public function saysWhatToDoWithTextOverTheInputLimit(): void
+    {
+        $client = new PostcodeClient(new FixtureGateway(), new HttpFactory());
+
+        $this->expectExceptionObject(PostcodeException::invalidInput(
+            'The text has more than 64 characters. Send no request for it.',
+        ));
+
+        $client->autocomplete('FC' . \str_repeat(' ', 70));
+    }
+
+    #[Test]
+    public function saysWhatToDoWithTextThatIsNotOneToElevenLettersAndDigits(): void
+    {
+        $client = new PostcodeClient(new FixtureGateway(), new HttpFactory());
+
+        $this->expectExceptionObject(PostcodeException::invalidInput(
+            'The text must hold 1 to 11 letters A to Z and digits 0 to 9, after spaces and '
+                . 'hyphens are removed. Send no request until the user types one.',
+        ));
+
+        $client->autocomplete('FC!');
+    }
+
+    #[Test]
     public function saysThatTextWithBytesThatAreNotUtf8IsNotText(): void
     {
         $client = new PostcodeClient(new FixtureGateway(), new HttpFactory());

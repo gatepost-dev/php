@@ -130,6 +130,36 @@ final class PostcodeExceptionTest extends TestCase
         self::assertSame(0, $error->getCode());
     }
 
+    /**
+     * @return array<string, array{int, string}>
+     */
+    public static function retryAfterWaits(): array
+    {
+        return [
+            'zero' => [0, 'Wait, then try again.'],
+            'one second' => [1000, 'Wait 1 s, then try again.'],
+            'one millisecond over one second' => [1001, 'Wait 2 s, then try again.'],
+            'one millisecond under one second' => [999, 'Wait 1 s, then try again.'],
+            'a fraction of a second' => [11_400, 'Wait 12 s, then try again.'],
+        ];
+    }
+
+    // The error is made inside the test, not in a data provider, so a mutation test that changes
+    // the message code also changes the error that this test reads.
+    #[Test]
+    #[DataProvider('retryAfterWaits')]
+    public function tellsTheUserHowLongToWaitAfterATooManyRequestsError(
+        int $retryAfterMs,
+        string $wait,
+    ): void {
+        $error = PostcodeException::fromStatus(429, 'rate_limited', $retryAfterMs);
+
+        self::assertSame(
+            'The gateway refused the request because the key sent too many (HTTP 429). ' . $wait,
+            $error->getMessage(),
+        );
+    }
+
     #[Test]
     public function keepsTheStatusOfAnUnreadableResponse(): void
     {

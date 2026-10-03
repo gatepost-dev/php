@@ -50,6 +50,22 @@ final class CacheFaultTest extends TestCase
 
     #[Test]
     #[DataProvider('failures')]
+    public function readsAStoreThatFailsOnlyOnTheReadOfAnEntryAsAMiss(Throwable $failure): void
+    {
+        $gateway = new FixtureGateway();
+        $store = new ArrayCache();
+        $client = self::cachingClient($gateway, $store);
+        // The first call makes the generation key. The store then fails on each entry read.
+        $client->lookup(FixtureGateway::UNIT);
+        $store->entryGetFails = $failure;
+
+        self::assertTrue($client->lookup(FixtureGateway::UNIT)->valid);
+
+        self::assertCount(2, $gateway->requests);
+    }
+
+    #[Test]
+    #[DataProvider('failures')]
     public function keepsTheResultWhenTheStoreFailsOnWrite(Throwable $failure): void
     {
         $gateway = new FixtureGateway();
