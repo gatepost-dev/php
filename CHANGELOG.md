@@ -11,7 +11,6 @@ This file lists each notable change to `gatepost/postcode`. The format follows [
 ### Changed
 
 - Implement spec 0.2.0. It adds the client contract, and core results stay the same.
-
 ## 0.1.0-alpha.0 - 2026-10-02
 
 ### Added
