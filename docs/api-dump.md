@@ -54,10 +54,11 @@ final class LookupResult
 
 final class PostcodeClient
 {
-    public function __construct(\Psr\Http\Client\ClientInterface $transport, \Psr\Http\Message\RequestFactoryInterface $requestFactory, ?string $apiKey = null, string $baseUrl = 'https://api.postcode.gov.ng', ?int $timeoutMs = null, int $maxRetries = 2);
+    public function __construct(\Psr\Http\Client\ClientInterface $transport, \Psr\Http\Message\RequestFactoryInterface $requestFactory, ?string $apiKey = null, string $baseUrl = 'https://api.postcode.gov.ng', ?int $timeoutMs = null, int $maxRetries = 2, int $cacheTtlMs = 0, ?\Psr\SimpleCache\CacheInterface $cache = null);
     public function lookup(\Gatepost\Postcode\Postcode|string $code, int $level = 1): LookupResult;
     public function reverse(float $lat, float $lng, ?float $maxDistanceM = null): ReverseResult;
     public function autocomplete(string $q): AutocompleteResult;
+    public function clearCache(): void;
 }
 
 final class PostcodeException extends \RuntimeException

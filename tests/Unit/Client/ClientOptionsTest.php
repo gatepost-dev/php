@@ -59,6 +59,22 @@ final class ClientOptionsTest extends TestCase
                 ),
                 'maxRetries is -1. Use 0 or more.',
             ],
+            'a negative cache time' => [
+                static fn(): PostcodeClient => new PostcodeClient(
+                    $gateway,
+                    $factory,
+                    cacheTtlMs: -1,
+                ),
+                'cacheTtlMs is -1. Use 0 or more.',
+            ],
+            'a cache time with no cache' => [
+                static fn(): PostcodeClient => new PostcodeClient(
+                    $gateway,
+                    $factory,
+                    cacheTtlMs: 1000,
+                ),
+                'cacheTtlMs is above 0. Pass a PSR-16 cache too.',
+            ],
             'an empty key' => [
                 static fn(): PostcodeClient => new PostcodeClient(
                     $gateway,

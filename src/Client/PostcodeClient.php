@@ -7,7 +7,9 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode\Client;
 
+use Closure;
 use Gatepost\Postcode\Client\Internal\Decimal;
+use Gatepost\Postcode\Client\Internal\ResultCache;
 use Gatepost\Postcode\Client\Internal\Sender;
 use Gatepost\Postcode\Client\Internal\SystemTimer;
 use Gatepost\Postcode\Internal\SpecData;
@@ -16,11 +18,12 @@ use Gatepost\Postcode\Precision;
 use InvalidArgumentException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Calls NIPOST's postcode gateway with your own API key. Each call blocks until it has a result
  * or a PostcodeException. A call that fails for a reason that can pass, such as a 503, is tried
- * again, up to maxRetries times.
+ * again, up to maxRetries times. The client keeps no result unless cacheTtlMs is above 0.
  *
  * Unofficial. Not made or endorsed by NIPOST.
  *
@@ -47,6 +50,8 @@ final class PostcodeClient
 
     private readonly Sender $autocompleteSender;
 
+    private readonly ?ResultCache $cache;
+
     /**
      * @param ClientInterface         $transport      A PSR-18 HTTP client. Set its timeout to
      *                                                timeoutMs, because PSR-18 has no timeout.
@@ -60,8 +65,13 @@ final class PostcodeClient
      *                                                With null, it is 8000, and 15000 for
      *                                                autocomplete.
      * @param int                     $maxRetries     The most retries after the first attempt.
+     * @param int                     $cacheTtlMs     How long the client keeps a result. 0 turns
+     *                                                the cache off.
+     * @param ?CacheInterface         $cache          A PSR-16 cache for the results. The client
+     *                                                needs one when cacheTtlMs is above 0.
      *
-     * @throws InvalidArgumentException When an option is out of range, or the key is empty.
+     * @throws InvalidArgumentException When an option is out of range, the key is empty, or
+     *                                  cacheTtlMs is above 0 with no cache.
      *
      * Callers name each option, and TELL-3 counts no named or defaulted parameter, so PHPMD's
      * count of parameters does not apply here.
@@ -75,6 +85,8 @@ final class PostcodeClient
         string $baseUrl = self::DEFAULT_BASE_URL,
         ?int $timeoutMs = null,
         int $maxRetries = 2,
+        int $cacheTtlMs = 0,
+        ?CacheInterface $cache = null,
     ) {
         if ($apiKey === '') {
             throw new InvalidArgumentException('apiKey is empty. Pass null to send no key.');
@@ -85,6 +97,12 @@ final class PostcodeClient
         if ($maxRetries < 0) {
             throw new InvalidArgumentException("maxRetries is {$maxRetries}. Use 0 or more.");
         }
+        if ($cacheTtlMs < 0) {
+            throw new InvalidArgumentException("cacheTtlMs is {$cacheTtlMs}. Use 0 or more.");
+        }
+        if ($cacheTtlMs > 0 && $cache === null) {
+            throw new InvalidArgumentException('cacheTtlMs is above 0. Pass a PSR-16 cache too.');
+        }
         $this->baseUrl = \rtrim($baseUrl, '/');
         $timer = new SystemTimer();
         $this->sender = new Sender($transport, $timeoutMs ?? 8000, $maxRetries, $timer);
@@ -94,6 +112,9 @@ final class PostcodeClient
             $maxRetries,
             $timer,
         );
+        $this->cache = $cache !== null && $cacheTtlMs > 0
+            ? new ResultCache($cache, $cacheTtlMs, $timer)
+            : null;
     }
 
     /**
@@ -123,9 +144,18 @@ final class PostcodeClient
         }
         $postcode = self::fullPostcode($code);
         $query = ['code' => $postcode->canonical, 'level' => $level];
-        $response = $this->send($this->sender, '/v1/lookup', $query, retryTimeouts: true);
+        $read = static fn(mixed $response): LookupResult => LookupResult::fromResponse(
+            $response,
+            $postcode,
+            $level,
+        );
 
-        return LookupResult::fromResponse($response, $postcode, $level);
+        return $this->call(
+            $this->sender,
+            $this->url('/v1/lookup', $query),
+            $read,
+            retryTimeouts: true,
+        );
     }
 
     /**
@@ -161,9 +191,14 @@ final class PostcodeClient
                 0,
             );
         }
-        $response = $this->send($this->sender, '/v1/search/reverse', $query, retryTimeouts: true);
+        $read = ReverseResult::fromResponse(...);
 
-        return ReverseResult::fromResponse($response);
+        return $this->call(
+            $this->sender,
+            $this->url('/v1/search/reverse', $query),
+            $read,
+            retryTimeouts: true,
+        );
     }
 
     /**
@@ -194,14 +229,30 @@ final class PostcodeClient
                     . 'hyphens are removed. Send no request until the user types one.',
             );
         }
-        $response = $this->send(
-            $this->autocompleteSender,
-            '/v1/search/autocomplete',
-            ['q' => $typed],
-            retryTimeouts: false,
+        $read = static fn(mixed $response): AutocompleteResult => AutocompleteResult::fromResponse(
+            $response,
+            $typed,
         );
 
-        return AutocompleteResult::fromResponse($response, $typed);
+        return $this->call(
+            $this->autocompleteSender,
+            $this->url('/v1/search/autocomplete', ['q' => $typed]),
+            $read,
+            retryTimeouts: false,
+        );
+    }
+
+    /**
+     * Removes every result that the client kept. The caller's other cache entries stay. A request
+     * that started before this call keeps no result.
+     *
+     * ```php
+     * $client->clearCache();
+     * ```
+     */
+    public function clearCache(): void
+    {
+        $this->cache?->clear();
     }
 
     /**
@@ -247,17 +298,49 @@ final class PostcodeClient
 
     /**
      * @param array<string, string|int> $query
+     */
+    private function url(string $path, array $query): string
+    {
+        return $this->baseUrl . $path . '?' . \http_build_query($query);
+    }
+
+    /**
+     * Gives the kept result of the call, or sends it, reads the response and keeps the data.
+     * The client keeps no error, and it keeps data only after it read the data without one.
+     *
+     * @template T
+     *
+     * @param Closure(mixed): T $read
+     *
+     * @return T
      *
      * @throws PostcodeException
      */
-    private function send(Sender $sender, string $path, array $query, bool $retryTimeouts): mixed
-    {
-        $url = $this->baseUrl . $path . '?' . \http_build_query($query);
+    private function call(
+        Sender $sender,
+        string $url,
+        Closure $read,
+        bool $retryTimeouts,
+    ): mixed {
         $request = $this->requestFactory->createRequest('GET', $url);
         if ($this->apiKey !== null) {
             $request = $request->withHeader('X-API-Key', $this->apiKey);
         }
+        $cache = $this->cache;
+        if ($cache === null) {
+            return $read($sender->send($request, $retryTimeouts));
+        }
+        // The query holds the canonical postcode and the level. Two keys can hold different
+        // levels, and a cache can serve two clients, so each API key keeps its own results.
+        $slot = $cache->slot($url . ' ' . ($this->apiKey ?? ''));
+        $kept = $cache->get($slot);
+        if ($kept !== null) {
+            return $read($kept);
+        }
+        $response = $sender->send($request, $retryTimeouts);
+        $result = $read($response);
+        $cache->put($slot, $response);
 
-        return $sender->send($request, $retryTimeouts);
+        return $result;
     }
 }
