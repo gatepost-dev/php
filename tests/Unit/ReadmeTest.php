@@ -8,7 +8,6 @@ declare(strict_types=1);
 namespace Gatepost\Postcode\Tests\Unit;
 
 use Composer\Semver\Semver;
-use Gatepost\Postcode\Internal\SpecData;
 use Gatepost\Postcode\Tests\Contract\ReadmeExampleTest;
 use Gatepost\Postcode\Tests\Readme;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -30,7 +29,6 @@ final class ReadmeTest extends TestCase
     {
         return [
             'the quickstart' => ['Quickstart', 'EK-01-A03-FK-01'],
-            'the input limit' => ['Limit the input', "ok\nbad_length\n"],
         ];
     }
 
@@ -88,8 +86,7 @@ final class ReadmeTest extends TestCase
     public static function clientExampleSections(): array
     {
         return [
-            'the check of a postcode' => ['Check a postcode with the gateway'],
-            'the search for a place' => ['Find a place and complete a postcode'],
+            'the check of a postcode' => ['Call the gateway'],
         ];
     }
 
@@ -104,15 +101,6 @@ final class ReadmeTest extends TestCase
         self::assertSame(1, \preg_match("/'timeout' => (\d+)/", $example, $transport));
         self::assertSame(1, \preg_match('/timeoutMs: (\d+),/', $example, $client));
         self::assertSame((int) $transport[1] * 1000, (int) $client[1]);
-    }
-
-    #[Test]
-    public function statesTheInputLimitOfTheSpec(): void
-    {
-        $section = Readme::section('Limit the input');
-
-        self::assertSame(1, \preg_match('/at most (\d+) code points/', $section, $limit));
-        self::assertSame(SpecData::MAX_INPUT_CODE_POINTS, (int) $limit[1]);
     }
 
     #[Test]

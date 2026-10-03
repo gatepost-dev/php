@@ -17,7 +17,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * The README makes the doc comments of src the API reference until the docs site is live, and
+ * The docs site holds the API reference.
  * DOC-3 asks that CI runs each code example. ReadmeTest runs the examples of the README. This test
  * runs the php examples of the doc comments, and it compares each result that an example shows.
  *
