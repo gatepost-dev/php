@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Gatepost\Postcode\Client\Internal;
 
 use Psr\SimpleCache\CacheInterface;
+use Throwable;
 
 /**
  * Keeps the data of each answered call in the caller's PSR-16 cache for cacheTtlMs (SEC-3). The
@@ -37,23 +38,35 @@ final class ResultCache
     /**
      * The key of a call in the current generation.
      *
-     * @param string $call The method and the canonical arguments of the call, with the API key.
-     *                     The cache sees only a hash of it, so its keys hold no postcode and no
-     *                     API key.
+     * @param string $url    The address of the request, which holds the canonical postcode and
+     *                       the level.
+     * @param string $apiKey The API key, or an empty string. It is the HMAC key, so the cache
+     *                       sees only a one-way hash and its keys hold no postcode and no API
+     *                       key. Two API keys never share an entry.
+     *
+     * @return ?string The key, or null when the cache failed. The call then runs with no cache.
      */
-    public function slot(string $call): string
+    public function slot(string $url, string $apiKey): ?string
     {
-        $hash = \substr(\hash('sha256', $call), 0, self::HASH_LENGTH);
-
-        return self::PREFIX . $this->generation() . '.' . $hash;
+        $hash = \substr(\hash_hmac('sha256', $url, $apiKey), 0, self::HASH_LENGTH);
+        try {
+            return self::PREFIX . $this->generation() . '.' . $hash;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**
-     * @return mixed The kept data, or null when nothing is kept. A result never has null data.
+     * @return mixed The kept data, or null when nothing is kept or the cache failed. A result
+     *               never has null data.
      */
     public function get(string $slot): mixed
     {
-        $entry = $this->cache->get($slot);
+        try {
+            $entry = $this->cache->get($slot);
+        } catch (Throwable) {
+            return null;
+        }
         $expiresAtMs = \is_array($entry) ? ($entry['expiresAtMs'] ?? null) : null;
         if (!\is_float($expiresAtMs) || $expiresAtMs <= $this->timer->nowMs()) {
             return null;
@@ -63,18 +76,24 @@ final class ResultCache
     }
 
     /**
-     * Keeps the data of a call that the client read without an error.
+     * Keeps the data of a call that the client read without an error. A cache that fails keeps
+     * nothing, and the caller still gets the result.
      */
     public function put(string $slot, mixed $data): void
     {
         $entry = ['expiresAtMs' => $this->timer->nowMs() + $this->ttlMs, 'data' => $data];
         // PSR-16 counts whole seconds, so the entry can outlive its TTL by up to one second.
         // get() checks the time in milliseconds.
-        $this->cache->set($slot, $entry, (int) \ceil($this->ttlMs / 1000));
+        try {
+            $this->cache->set($slot, $entry, (int) \ceil($this->ttlMs / 1000));
+        } catch (Throwable) {
+            // A cache is an extra. Its failure never costs the caller a good result.
+        }
     }
 
     /**
-     * Makes every result that this cache kept unreachable.
+     * Makes every result that this cache kept unreachable. A failure of the cache passes to the
+     * caller, because a clear that did not happen must not look as if it did.
      */
     public function clear(): void
     {

@@ -20,7 +20,6 @@ final class ResultCacheTest extends TestCase
 {
     private const KEY = 'nipost_test_mock_l3';
     private const URL = 'https://gateway.invalid/v1/lookup?code=FC-01-Z99-ZZ-01&level=1';
-    private const CALL = self::URL . ' ' . self::KEY;
     private const DATA = ['postcode' => 'FC-01-Z99-ZZ-01', 'valid' => true];
 
     private ArrayCache $store;
@@ -39,14 +38,14 @@ final class ResultCacheTest extends TestCase
     #[Test]
     public function givesBackTheDataUntilTheTtlEnds(): void
     {
-        $this->cache->put($this->cache->slot(self::CALL), self::DATA);
+        $this->cache->put($this->slot(), self::DATA);
         $this->timer->advance(1499);
 
-        self::assertSame(self::DATA, $this->cache->get($this->cache->slot(self::CALL)));
+        self::assertSame(self::DATA, $this->cache->get($this->slot()));
 
         $this->timer->advance(1);
 
-        self::assertNull($this->cache->get($this->cache->slot(self::CALL)));
+        self::assertNull($this->cache->get($this->slot()));
     }
 
     /**
@@ -67,7 +66,7 @@ final class ResultCacheTest extends TestCase
     {
         $cache = new ResultCache($this->store, $ttlMs, $this->timer);
 
-        $cache->put($cache->slot(self::CALL), self::DATA);
+        $cache->put(self::slotOf($cache), self::DATA);
 
         $resultTtls = \array_filter($this->store->ttls, static fn($ttl): bool => $ttl !== null);
         self::assertSame([$seconds], \array_values($resultTtls));
@@ -76,8 +75,8 @@ final class ResultCacheTest extends TestCase
     #[Test]
     public function keepsEachCallUnderAKeyThatPsr16Allows(): void
     {
-        $this->cache->put($this->cache->slot(self::CALL), self::DATA);
-        $this->cache->put($this->cache->slot(self::CALL . ' other'), self::DATA);
+        $this->cache->put($this->slot(), self::DATA);
+        $this->cache->put($this->slot(self::URL . '&other=1'), self::DATA);
 
         $keys = \array_keys($this->store->entries);
         self::assertCount(3, $keys);
@@ -89,48 +88,72 @@ final class ResultCacheTest extends TestCase
     }
 
     #[Test]
+    public function hashesTheCallWithTheApiKeyAsTheHmacKey(): void
+    {
+        $slot = $this->slot();
+
+        $hash = \substr(\hash_hmac('sha256', self::URL, self::KEY), 0, 40);
+        self::assertStringEndsWith('.' . $hash, $slot);
+        self::assertStringNotContainsString(self::KEY, $slot);
+        self::assertNotSame($slot, $this->cache->slot(self::URL, 'another_key'));
+    }
+
+    #[Test]
     public function hidesEveryKeptResultAfterClearAndKeepsTheOtherEntries(): void
     {
         $this->store->set('app.session', 'kept');
-        $this->cache->put($this->cache->slot(self::CALL), self::DATA);
+        $this->cache->put($this->slot(), self::DATA);
 
         $this->cache->clear();
 
-        self::assertNull($this->cache->get($this->cache->slot(self::CALL)));
+        self::assertNull($this->cache->get($this->slot()));
         self::assertSame('kept', $this->store->get('app.session'));
     }
 
     #[Test]
     public function keepsNoResultOfACallThatStartedBeforeClear(): void
     {
-        $slot = $this->cache->slot(self::CALL);
+        $slot = $this->slot();
 
         $this->cache->clear();
         $this->cache->put($slot, self::DATA);
 
-        self::assertNull($this->cache->get($this->cache->slot(self::CALL)));
+        self::assertNull($this->cache->get($this->slot()));
     }
 
     #[Test]
     public function hidesTheOldResultsWhenTheCacheEvictsTheGeneration(): void
     {
-        $this->cache->put($this->cache->slot(self::CALL), self::DATA);
+        $this->cache->put($this->slot(), self::DATA);
 
         $this->store->delete('gatepost.generation');
 
-        self::assertNull($this->cache->get($this->cache->slot(self::CALL)));
+        self::assertNull($this->cache->get($this->slot()));
     }
 
     #[Test]
     public function readsAnEntryOfAnotherShapeAsNothingKept(): void
     {
-        $this->cache->put($this->cache->slot(self::CALL), self::DATA);
+        $this->cache->put($this->slot(), self::DATA);
         foreach (\array_keys($this->store->entries) as $key) {
             if ($key !== 'gatepost.generation') {
                 $this->store->set($key, ['data' => self::DATA]);
             }
         }
 
-        self::assertNull($this->cache->get($this->cache->slot(self::CALL)));
+        self::assertNull($this->cache->get($this->slot()));
+    }
+
+    private function slot(string $url = self::URL): string
+    {
+        return self::slotOf($this->cache, $url);
+    }
+
+    private static function slotOf(ResultCache $cache, string $url = self::URL): string
+    {
+        $slot = $cache->slot($url, self::KEY);
+        self::assertNotNull($slot);
+
+        return $slot;
     }
 }

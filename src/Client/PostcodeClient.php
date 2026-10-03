@@ -266,8 +266,9 @@ final class PostcodeClient
     }
 
     /**
-     * Removes every result that the client kept. The caller's other cache entries stay. A request
-     * that started before this call keeps no result.
+     * Removes every result that any client of the same cache kept, also the results of a client
+     * with another API key. The caller's other cache entries stay. A request that started before
+     * this call keeps no result. A failure of the cache passes to the caller.
      *
      * ```php
      * $client->clearCache();
@@ -353,12 +354,19 @@ final class PostcodeClient
         if ($cache === null) {
             return $read($sender->send($request, $retryTimeouts));
         }
-        // The query holds the canonical postcode and the level. Two keys can hold different
-        // levels, and a cache can serve two clients, so each API key keeps its own results.
-        $slot = $cache->slot($url . ' ' . ($this->apiKey ?? ''));
+        // The URL holds the canonical postcode and the level. A cache can serve two clients, so
+        // each API key keeps its own results.
+        $slot = $cache->slot($url, $this->apiKey ?? '');
+        if ($slot === null) {
+            return $read($sender->send($request, $retryTimeouts));
+        }
         $kept = $cache->get($slot);
         if ($kept !== null) {
-            return $read($kept);
+            try {
+                return $read($kept);
+            } catch (PostcodeException) {
+                // An entry that this client cannot read is a miss. The new result replaces it.
+            }
         }
         $response = $sender->send($request, $retryTimeouts);
         $result = $read($response);

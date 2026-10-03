@@ -10,6 +10,7 @@ namespace Gatepost\Postcode\Tests\Unit\Client;
 use DateInterval;
 use InvalidArgumentException;
 use Psr\SimpleCache\CacheInterface;
+use Throwable;
 
 /**
  * A PSR-16 cache in memory that never expires an entry by itself. It records the TTL of each
@@ -23,13 +24,27 @@ final class ArrayCache implements CacheInterface
     /** @var array<string, DateInterval|int|null> */
     public array $ttls = [];
 
+    /** A failure that get() throws, as a broken store does. */
+    public ?Throwable $getFails = null;
+
+    /** A failure that set() throws. */
+    public ?Throwable $setFails = null;
+
     public function get(string $key, mixed $default = null): mixed
     {
+        if ($this->getFails !== null) {
+            throw $this->getFails;
+        }
+
         return \array_key_exists($key, $this->entries) ? $this->entries[$key] : $default;
     }
 
     public function set(string $key, mixed $value, DateInterval|int|null $ttl = null): bool
     {
+        if ($this->setFails !== null) {
+            throw $this->setFails;
+        }
+
         $this->entries[$key] = $value;
         $this->ttls[$key] = $ttl;
 
