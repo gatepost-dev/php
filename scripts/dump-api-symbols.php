@@ -111,9 +111,11 @@ function unwritable(string $what, mixed $value): RuntimeException
 }
 
 // The doc comments of the package say @internal for a public symbol that only the package calls.
+// Only a tag counts: the word in the text of a doc, such as a parameter, hides nothing.
 function isInternal(string|false $docComment): bool
 {
-    return $docComment !== false && \str_contains($docComment, '@internal');
+    return $docComment !== false
+        && \preg_match('/^[ \t]*(?:\/\*\*|\*)?[ \t]*@internal\b/m', $docComment) === 1;
 }
 
 /**

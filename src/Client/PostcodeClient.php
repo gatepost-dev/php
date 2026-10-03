@@ -77,8 +77,8 @@ final class PostcodeClient
      *                                                the cache off.
      * @param ?CacheInterface         $cache          A PSR-16 cache for the results. The client
      *                                                needs one when cacheTtlMs is above 0.
-     * @param ?Timer                  $timer          The clock and the waits of the client, for
-     *                                                tests. @internal Leave it null.
+     * @param ?Timer                  $timer          The clock and the waits of the client.
+     *                                                Only the tests pass it. Leave it null.
      *
      * @throws InvalidArgumentException When an option is out of range, the key is empty, or
      *                                  cacheTtlMs is above 0 with no cache.

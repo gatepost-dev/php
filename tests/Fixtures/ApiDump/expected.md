@@ -19,6 +19,11 @@ enum Colour: string
     public function label(): string;
 }
 
+final class Noted
+{
+    public function annotate(?string $note = null): void;
+}
+
 interface Shape
 {
     public const SIDES = 4;
