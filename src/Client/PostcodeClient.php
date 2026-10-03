@@ -12,6 +12,7 @@ use Gatepost\Postcode\Client\Internal\Decimal;
 use Gatepost\Postcode\Client\Internal\ResultCache;
 use Gatepost\Postcode\Client\Internal\Sender;
 use Gatepost\Postcode\Client\Internal\SystemTimer;
+use Gatepost\Postcode\Client\Internal\Timer;
 use Gatepost\Postcode\Internal\SpecData;
 use Gatepost\Postcode\Postcode;
 use Gatepost\Postcode\Precision;
@@ -29,7 +30,7 @@ use Psr\SimpleCache\CacheInterface;
  *
  * ```php
  * $client = new PostcodeClient(
- *     new \GuzzleHttp\Client(['timeout' => 8]),
+ *     new \GuzzleHttp\Client(['timeout' => 15]),
  *     new \GuzzleHttp\Psr7\HttpFactory(),
  *     apiKey: \getenv('NIPOST_API_KEY') ?: null,
  * );
@@ -53,8 +54,13 @@ final class PostcodeClient
     private readonly ?ResultCache $cache;
 
     /**
-     * @param ClientInterface         $transport      A PSR-18 HTTP client. Set its timeout to
-     *                                                timeoutMs, because PSR-18 has no timeout.
+     * @param ClientInterface         $transport      A PSR-18 HTTP client. PSR-18 has no timeout,
+     *                                                so set the timeout of the transport to the
+     *                                                longest timeout in use, which is 15 s with
+     *                                                the defaults. The client reads a failed
+     *                                                attempt as a timeout when it took timeoutMs
+     *                                                or more, and as a network_error when it
+     *                                                took less.
      * @param RequestFactoryInterface $requestFactory A PSR-17 factory for the requests.
      * @param ?string                 $apiKey         The key for the X-API-Key header. With null,
      *                                                the client sends no key, and the gateway
@@ -63,12 +69,15 @@ final class PostcodeClient
      * @param ?int                    $timeoutMs      The longest wait for one attempt. A failed
      *                                                attempt that took this long is a timeout.
      *                                                With null, it is 8000, and 15000 for
-     *                                                autocomplete.
+     *                                                autocomplete. Set the timeout of the
+     *                                                transport to this value or more.
      * @param int                     $maxRetries     The most retries after the first attempt.
      * @param int                     $cacheTtlMs     How long the client keeps a result. 0 turns
      *                                                the cache off.
      * @param ?CacheInterface         $cache          A PSR-16 cache for the results. The client
      *                                                needs one when cacheTtlMs is above 0.
+     * @param ?Timer                  $timer          The clock and the waits of the client, for
+     *                                                tests. @internal Leave it null.
      *
      * @throws InvalidArgumentException When an option is out of range, the key is empty, or
      *                                  cacheTtlMs is above 0 with no cache.
@@ -87,6 +96,7 @@ final class PostcodeClient
         int $maxRetries = 2,
         int $cacheTtlMs = 0,
         ?CacheInterface $cache = null,
+        ?Timer $timer = null,
     ) {
         if ($apiKey === '') {
             throw new InvalidArgumentException('apiKey is empty. Pass null to send no key.');
@@ -104,7 +114,7 @@ final class PostcodeClient
             throw new InvalidArgumentException('cacheTtlMs is above 0. Pass a PSR-16 cache too.');
         }
         $this->baseUrl = \rtrim($baseUrl, '/');
-        $timer = new SystemTimer();
+        $timer ??= new SystemTimer();
         $this->sender = new Sender($transport, $timeoutMs ?? 8000, $maxRetries, $timer);
         $this->autocompleteSender = new Sender(
             $transport,
@@ -205,7 +215,9 @@ final class PostcodeClient
      * Suggests ways to complete the segment that the user types. The client normalises the text
      * with Postcode::normalize(). It sends no request for text that is empty, longer than a
      * postcode, or holds a character other than A to Z and 0 to 9. A timeout ends the call
-     * without a retry, because the next keystroke replaces it.
+     * without a retry, because the next keystroke replaces it. The call waits 15 s by default,
+     * so the transport needs a timeout of 15 s or more. With a shorter transport timeout, the
+     * failure reads as a network_error, and the client retries it.
      *
      * ```php
      * $result = $client->autocomplete('fc01z');
@@ -221,8 +233,19 @@ final class PostcodeClient
     public function autocomplete(string $q): AutocompleteResult
     {
         // Like the other clients, refuse text over the input limit of the core before the
-        // normalisation, which has no limit of its own. A string that is not UTF-8 fails here too.
-        $typed = \preg_match(self::WITHIN_INPUT_LIMIT, $q) === 1 ? Postcode::normalize($q) : '';
+        // normalisation, which has no limit of its own. preg_match gives false for a string
+        // that is not UTF-8.
+        $within = \preg_match(self::WITHIN_INPUT_LIMIT, $q);
+        if ($within === false) {
+            throw PostcodeException::invalidInput('The text is not valid UTF-8.');
+        }
+        if ($within === 0) {
+            throw PostcodeException::invalidInput(
+                'The text has more than ' . SpecData::MAX_INPUT_CODE_POINTS . ' characters. '
+                    . 'Send no request for it.',
+            );
+        }
+        $typed = Postcode::normalize($q);
         if (\preg_match(self::AUTOCOMPLETE_TEXT, $typed) !== 1) {
             throw PostcodeException::invalidInput(
                 'The text must hold 1 to 11 letters A to Z and digits 0 to 9, after spaces and '

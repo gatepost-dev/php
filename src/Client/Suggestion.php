@@ -48,7 +48,8 @@ final class Suggestion
 
     /**
      * The typed segments before the active one, followed by the code. The result counts only when
-     * it parses and ends in the active segment.
+     * it parses and ends in the active segment. A code of the wrong length can parse as another
+     * precision: FC01 after F is the LGA, not the state, and that gives null.
      */
     private static function postcodeOf(string $typed, string $code, Precision $segment): ?Postcode
     {

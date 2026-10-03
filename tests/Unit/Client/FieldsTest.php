@@ -20,21 +20,24 @@ use PHPUnit\Framework\TestCase;
 final class FieldsTest extends TestCase
 {
     /**
-     * @return array<string, array{mixed}>
+     * @return array<string, array{mixed, array<string, mixed>}>
      */
     public static function objects(): array
     {
         return [
-            'an object with fields' => [['valid' => true]],
-            'an empty object, which json_decode() reads as an empty array' => [[]],
+            'an object with fields' => [['valid' => true], ['valid' => true]],
+            'an empty object, which the Sender keeps as a stdClass' => [new \stdClass(), []],
         ];
     }
 
+    /**
+     * @param array<string, mixed> $expected
+     */
     #[Test]
     #[DataProvider('objects')]
-    public function readsAJsonObject(mixed $value): void
+    public function readsAJsonObject(mixed $value, array $expected): void
     {
-        self::assertSame($value, Fields::object($value));
+        self::assertSame($expected, Fields::object($value));
     }
 
     #[Test]
@@ -47,6 +50,8 @@ final class FieldsTest extends TestCase
         self::assertNull(Fields::objectOrNull($fields, 'c'));
         self::assertNull(Fields::objectOrNull($fields, 'd'));
         self::assertNull(Fields::objectOrNull($fields, 'missing'));
+        self::assertSame([], Fields::objectOrNull(['e' => new \stdClass()], 'e'));
+        self::assertNull(Fields::objectOrNull(['e' => []], 'e'));
     }
 
     #[Test]
@@ -68,6 +73,7 @@ final class FieldsTest extends TestCase
     {
         return [
             'a list' => [[1, 2]],
+            'an empty list' => [[]],
             'a list of one object' => [[['valid' => true]]],
             'text' => ['valid'],
             'null' => [null],

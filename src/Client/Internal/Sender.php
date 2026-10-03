@@ -15,6 +15,7 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use stdClass;
 
 /**
  * Sends one call as one or more attempts, with the retries and waits of spec/client.md. A PSR-18
@@ -144,7 +145,7 @@ final class Sender
     private static function dataField(ResponseInterface $response, ?int $retryAfterMs): mixed
     {
         $status = $response->getStatusCode();
-        $body = \json_decode((string) $response->getBody(), true);
+        $body = self::decode((string) $response->getBody());
         if ($status !== 200) {
             throw PostcodeException::fromStatus($status, self::apiCode($body), $retryAfterMs);
         }
@@ -153,6 +154,26 @@ final class Sender
         }
 
         return $body['data'];
+    }
+
+    /**
+     * Decodes JSON to arrays, but keeps an empty JSON object as a stdClass. PHP reads {} and []
+     * as the same empty array, and Fields needs to tell them apart.
+     */
+    private static function decode(string $json): mixed
+    {
+        return self::arrays(\json_decode($json));
+    }
+
+    private static function arrays(mixed $value): mixed
+    {
+        if ($value instanceof stdClass) {
+            $fields = \get_object_vars($value);
+
+            return $fields === [] ? $value : \array_map(self::arrays(...), $fields);
+        }
+
+        return \is_array($value) ? \array_map(self::arrays(...), $value) : $value;
     }
 
     /**

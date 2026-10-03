@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Gatepost\Postcode\Client\Internal;
 
 use Gatepost\Postcode\Client\PostcodeException;
+use stdClass;
 
 /**
  * Reads the fields of a decoded response body (PHP-14). A reader takes only the fields that it
@@ -19,8 +20,9 @@ use Gatepost\Postcode\Client\PostcodeException;
 final class Fields
 {
     /**
-     * A JSON object whose keys are only 0, 1, 2 and so on reads as a list, so it fails here too.
-     * No shape of the gateway has such keys.
+     * The Sender decodes a JSON object with fields to an array, and an empty JSON object to a
+     * stdClass, so that an empty object and an empty list stay apart. A JSON object whose keys
+     * are only 0, 1, 2 and so on still reads as a list. No shape of the gateway has such keys.
      *
      * @return array<array-key, mixed>
      *
@@ -28,11 +30,9 @@ final class Fields
      */
     public static function object(mixed $value): array
     {
-        if (!\is_array($value) || ($value !== [] && \array_is_list($value))) {
-            throw PostcodeException::unreadable(200);
-        }
+        $fields = self::objectOrNull(['value' => $value], 'value');
 
-        return $value;
+        return $fields ?? throw PostcodeException::unreadable(200);
     }
 
     /**
@@ -45,8 +45,11 @@ final class Fields
     public static function objectOrNull(array $fields, string $name): ?array
     {
         $value = $fields[$name] ?? null;
+        if ($value instanceof stdClass) {
+            return [];
+        }
 
-        return \is_array($value) && ($value === [] || !\array_is_list($value)) ? $value : null;
+        return \is_array($value) && $value !== [] && !\array_is_list($value) ? $value : null;
     }
 
     /**
@@ -69,7 +72,8 @@ final class Fields
      *
      * @return list<mixed>
      *
-     * @throws PostcodeException When the field is missing or is not a JSON array.
+     * @throws PostcodeException When the field is missing or is not a JSON array. A JSON object
+     *                           whose keys are 0, 1, 2 and so on reads as a list.
      */
     public static function list(array $fields, string $name): array
     {

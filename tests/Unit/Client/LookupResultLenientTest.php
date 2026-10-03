@@ -12,6 +12,7 @@ use Gatepost\Postcode\Postcode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
 /**
  * The parts of a lookup response outside the closed list of spec/client.md give null when they
@@ -55,7 +56,7 @@ final class LookupResultLenientTest extends TestCase
     }
 
     /**
-     * @return array<string, array{array<string, mixed>, ?string, ?string}>
+     * @return array<string, array{array<string, mixed>|stdClass, ?string, ?string}>
      */
     public static function addressNames(): array
     {
@@ -68,18 +69,18 @@ final class LookupResultLenientTest extends TestCase
                 null,
             ],
             'a zone that is a number' => [[...$names, 'zone' => 5], 'S', null],
-            'an empty address' => [[], null, null],
+            'an empty address' => [new stdClass(), null, null],
             'a state that is null' => [[...$names, 'state_name' => null], null, 'Z'],
         ];
     }
 
     /**
-     * @param array<string, mixed> $address
+     * @param array<string, mixed>|stdClass $address
      */
     #[Test]
     #[DataProvider('addressNames')]
     public function givesNullForEachNameThatIsMissingOrNotText(
-        array $address,
+        array|stdClass $address,
         ?string $state,
         ?string $zone,
     ): void {
