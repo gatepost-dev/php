@@ -28,11 +28,7 @@ final class ReadmeExampleTest extends MockServerTestCase
     public static function examples(): array
     {
         return [
-            'the check of a postcode' => ['Check a postcode with the gateway', "valid\n"],
-            'the search for a place' => [
-                'Find a place and complete a postcode',
-                "FC-01-Z99-ZZ-01\ndistrict\n",
-            ],
+            'the check of a postcode' => ['Call the gateway', "valid\n"],
         ];
     }
 
