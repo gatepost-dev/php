@@ -24,7 +24,7 @@ final class Postcode
     /**
      * The version of the Gatepost spec that this package implements.
      */
-    public const SPEC_VERSION = '0.1.0';
+    public const SPEC_VERSION = '0.2.0';
 
     // In UTF-8, a code point takes at most 4 bytes. Longer input is over the limit without a
     // count, so a 10 MB string costs no more than a short one.

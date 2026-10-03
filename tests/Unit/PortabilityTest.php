@@ -18,7 +18,10 @@ use SplFileInfo;
  * The package runs on shared WordPress hosts. Many of them lack ext-intl or ext-mbstring, and
  * on PHP 8.1 the case functions follow the locale. A Packagist install has no spec submodule,
  * so the package must read no files, and the core has no I/O, no clock and no randomness (CS-2).
- * A string such as 'strtoupper' is a callable, so a string literal counts as a name too.
+ * A string such as 'strtoupper' is a callable, so a string literal counts as a name too. The
+ * client in src/Client/ must wait between retries and time each attempt, so it may use the clock
+ * and randomness. It still sends each request through the caller's PSR-18 transport, so the
+ * other lists apply to it.
  *
  * The check reads names from lists, because a tool that reads symbols leaves most of them out.
  * ComposerRequireChecker flags only a symbol of an extension that composer.json does not require.
@@ -27,6 +30,9 @@ use SplFileInfo;
  */
 final class PortabilityTest extends TestCase
 {
+    private const CLOCK_GROUP = 'the clock and randomness (CS-2)';
+    private const CLIENT_FOLDER = 'src/Client/';
+
     private const NAME_TOKENS = [
         \T_STRING,
         \T_NAME_QUALIFIED,
@@ -100,7 +106,7 @@ final class PortabilityTest extends TestCase
                 ],
                 ['curl', 'gethostby', 'proc_', 'socket_'],
             ],
-            'the clock and randomness (CS-2)' => [
+            self::CLOCK_GROUP => [
                 [
                     'date', 'date_create', 'date_create_immutable', 'date_default_timezone_get',
                     'date_default_timezone_set', 'datetime', 'datetimeimmutable', 'getdate',
@@ -174,9 +180,11 @@ final class PortabilityTest extends TestCase
     #[Test]
     public function keepsTheSourceFreeOfEveryBannedName(): void
     {
-        $lookup = self::lookup();
+        $coreLookup = self::lookup();
+        $clientLookup = self::lookup(leaveOut: self::CLOCK_GROUP);
         $found = [];
         foreach (self::sourceFiles('src') as $file => $code) {
+            $lookup = \str_starts_with($file, self::CLIENT_FOLDER) ? $clientLookup : $coreLookup;
             foreach (self::bannedIn($code, $lookup) as [$name, $line]) {
                 $found[] = "{$name} in {$file}:{$line}";
             }
@@ -195,6 +203,16 @@ final class PortabilityTest extends TestCase
         $found = self::bannedIn("<?php {$statements}", self::lookup());
 
         self::assertSame($expected, \array_column($found, 0));
+    }
+
+    #[Test]
+    public function letsTheClientWaitButNotOpenAFile(): void
+    {
+        $code = '<?php \\usleep(500_000); \\random_int(0, 250); \\fopen($path, "r");';
+
+        $found = self::bannedIn($code, self::lookup(leaveOut: self::CLOCK_GROUP));
+
+        self::assertSame(['fopen'], \array_column($found, 0));
     }
 
     #[Test]
@@ -228,15 +246,19 @@ final class PortabilityTest extends TestCase
     }
 
     /**
-     * The lists as lookups: the names as keys, and the prefixes as one pattern.
+     * The lists as lookups: the names as keys, and the prefixes as one pattern. A group can stay
+     * out, such as the clock for the client.
      *
      * @return array{array<string, int>, string}
      */
-    private static function lookup(): array
+    private static function lookup(?string $leaveOut = null): array
     {
         $names = [];
         $prefixes = [];
-        foreach (self::bannedNames() as [$groupNames, $groupPrefixes]) {
+        foreach (self::bannedNames() as $group => [$groupNames, $groupPrefixes]) {
+            if ($group === $leaveOut) {
+                continue;
+            }
             $names = [...$names, ...$groupNames];
             $prefixes = [...$prefixes, ...$groupPrefixes];
         }

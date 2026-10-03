@@ -1,15 +1,20 @@
 {
     "name": "gatepost/postcode",
-    "description": "Unofficial. Not made or endorsed by NIPOST. Parse Nigerian postcodes offline.",
+    "description": "Unofficial. Not made or endorsed by NIPOST. Read and query Nigerian postcodes.",
     "license": "Apache-2.0",
     "type": "library",
     "require": {
-        "php": "^8.1"
+        "php": "^8.1",
+        "psr/http-client": "^1.0.3",
+        "psr/http-factory": "^1.1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/simple-cache": "^2.0 || ^3.0"
     },
     "require-dev": {
         "composer/semver": "^3.5.0",
         "ergebnis/composer-normalize": "^2.54.0",
         "friendsofphp/php-cs-fixer": "^3.95.27",
+        "guzzlehttp/guzzle": "^7.15.5",
         "phpmd/phpmd": "^2.15.0",
         "phpstan/phpstan": "^2.2.16",
         "phpstan/phpstan-deprecation-rules": "^2.0.5",
@@ -61,6 +66,7 @@
             "@tells"
         ],
         "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
+        "contract": "phpunit --testsuite contract",
         "cs": "php-cs-fixer fix",
         "cs:check": "php-cs-fixer fix --dry-run --diff",
         "deps:licences": "@php scripts/check-licences.php",
@@ -69,7 +75,7 @@
         "licences": "uvx --with charset-normalizer==3.5.2 reuse@6.2.0 lint",
         "mutation": [
             "@putenv XDEBUG_MODE=coverage",
-            "tools/infection/vendor/bin/infection --threads=max"
+            "tools/infection/vendor/bin/infection --threads=max --show-mutations=0"
         ],
         "phpmd": "@php -d error_reporting=24575 vendor/bin/phpmd scripts,src,tests text phpmd.xml",
         "phpstan": "phpstan analyse --no-progress",
@@ -90,6 +96,7 @@
         "changes:check": "Check that CHANGELOG.md matches the change files.",
         "check": "Run every check that CI runs.",
         "context:check": "Check that CONTEXT.md matches the copy in the spec.",
+        "contract": "Run the contract scenarios against the mock server at GATEPOST_MOCK_URL.",
         "cs": "Fix the code style.",
         "cs:check": "Check the code style.",
         "deps:licences": "Check that each locked package has a permissive licence (DEP-4).",

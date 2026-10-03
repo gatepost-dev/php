@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repo is part of Gatepost, unofficial open-source developer tools for Nigeria's National Digital Postcode. This repo holds the PHP SDK, `gatepost/postcode`. Today it has the core.
+This repo is part of Gatepost, unofficial open-source developer tools for Nigeria's National Digital Postcode. This repo holds the PHP SDK, `gatepost/postcode`. Today it has the core and the client.
 
 ## Read first
 
