@@ -124,7 +124,7 @@ jobs:
         with:
           repository: gatepost-dev/js
           # A js commit that holds packages/mock-server. Move it when the mock server changes.
-          ref: 2ee026be7be1272f8d58a3d649722000e6335fdd
+          ref: c94adef64c7d3640ddc20f53a27ec2f6fba96601
           path: build/js
           sparse-checkout: packages/mock-server
           persist-credentials: false
