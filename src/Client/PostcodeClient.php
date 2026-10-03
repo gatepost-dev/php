@@ -7,8 +7,10 @@ declare(strict_types=1);
 
 namespace Gatepost\Postcode\Client;
 
+use Gatepost\Postcode\Client\Internal\Decimal;
 use Gatepost\Postcode\Client\Internal\Sender;
 use Gatepost\Postcode\Client\Internal\SystemTimer;
+use Gatepost\Postcode\Internal\SpecData;
 use Gatepost\Postcode\Postcode;
 use Gatepost\Postcode\Precision;
 use InvalidArgumentException;
@@ -33,10 +35,17 @@ use Psr\Http\Message\RequestFactoryInterface;
 final class PostcodeClient
 {
     private const DEFAULT_BASE_URL = 'https://api.postcode.gov.ng';
+    private const AUTOCOMPLETE_TIMEOUT_MS = 15000;
+    // The gateway answers no empty q, and a postcode has 11 characters (spec/client.md).
+    private const AUTOCOMPLETE_TEXT = '/\A[A-Z0-9]{1,11}\z/';
+    private const WITHIN_INPUT_LIMIT = '/\A.{0,' . SpecData::MAX_INPUT_CODE_POINTS . '}\z/su';
+    private const MAX_RADIUS_M = 250;
 
     private readonly string $baseUrl;
 
     private readonly Sender $sender;
+
+    private readonly Sender $autocompleteSender;
 
     /**
      * @param ClientInterface         $transport      A PSR-18 HTTP client. Set its timeout to
@@ -46,8 +55,10 @@ final class PostcodeClient
      *                                                the client sends no key, and the gateway
      *                                                answers 401.
      * @param string                  $baseUrl        The gateway's address.
-     * @param int                     $timeoutMs      The longest wait for one attempt. A failed
+     * @param ?int                    $timeoutMs      The longest wait for one attempt. A failed
      *                                                attempt that took this long is a timeout.
+     *                                                With null, it is 8000, and 15000 for
+     *                                                autocomplete.
      * @param int                     $maxRetries     The most retries after the first attempt.
      *
      * @throws InvalidArgumentException When an option is out of range, or the key is empty.
@@ -62,20 +73,27 @@ final class PostcodeClient
         private readonly RequestFactoryInterface $requestFactory,
         private readonly ?string $apiKey = null,
         string $baseUrl = self::DEFAULT_BASE_URL,
-        int $timeoutMs = 8000,
+        ?int $timeoutMs = null,
         int $maxRetries = 2,
     ) {
         if ($apiKey === '') {
             throw new InvalidArgumentException('apiKey is empty. Pass null to send no key.');
         }
-        if ($timeoutMs <= 0) {
+        if ($timeoutMs !== null && $timeoutMs <= 0) {
             throw new InvalidArgumentException("timeoutMs is {$timeoutMs}. Use 1 or more.");
         }
         if ($maxRetries < 0) {
             throw new InvalidArgumentException("maxRetries is {$maxRetries}. Use 0 or more.");
         }
         $this->baseUrl = \rtrim($baseUrl, '/');
-        $this->sender = new Sender($transport, $timeoutMs, $maxRetries, new SystemTimer());
+        $timer = new SystemTimer();
+        $this->sender = new Sender($transport, $timeoutMs ?? 8000, $maxRetries, $timer);
+        $this->autocompleteSender = new Sender(
+            $transport,
+            $timeoutMs ?? self::AUTOCOMPLETE_TIMEOUT_MS,
+            $maxRetries,
+            $timer,
+        );
     }
 
     /**
@@ -105,9 +123,85 @@ final class PostcodeClient
         }
         $postcode = self::fullPostcode($code);
         $query = ['code' => $postcode->canonical, 'level' => $level];
-        $response = $this->send('/v1/lookup', $query, retryTimeouts: true);
+        $response = $this->send($this->sender, '/v1/lookup', $query, retryTimeouts: true);
 
         return LookupResult::fromResponse($response, $postcode, $level);
+    }
+
+    /**
+     * Finds the postcode at a point, such as a GPS fix. A point with no postcode within the
+     * radius is a result with found false, not an error.
+     *
+     * ```php
+     * $result = $client->reverse(9.0, 7.0);
+     * echo $result->unit?->postcode->canonical; // FC-01-Z99-ZZ-01
+     * echo $result->area; // FC-01-Z99-ZZ
+     * ```
+     *
+     * @param float  $lat          The latitude in degrees, from -90 to 90.
+     * @param float  $lng          The longitude in degrees, from -180 to 180.
+     * @param ?float $maxDistanceM The radius in metres, from 0 to 250. With null, the gateway
+     *                             applies its own default. The gateway cuts a larger radius to 250
+     *                             without a sign, so the client refuses it.
+     *
+     * @throws PostcodeException For a number outside its range or not finite, and for each
+     *                           failure of the gateway. The client sends no request for bad input.
+     */
+    public function reverse(float $lat, float $lng, ?float $maxDistanceM = null): ReverseResult
+    {
+        $query = [
+            'lat' => self::decimal('The latitude', $lat, 90),
+            'lng' => self::decimal('The longitude', $lng, 180),
+        ];
+        if ($maxDistanceM !== null) {
+            $query['max_distance_m'] = self::decimal(
+                'The radius',
+                $maxDistanceM,
+                self::MAX_RADIUS_M,
+                0,
+            );
+        }
+        $response = $this->send($this->sender, '/v1/search/reverse', $query, retryTimeouts: true);
+
+        return ReverseResult::fromResponse($response);
+    }
+
+    /**
+     * Suggests ways to complete the segment that the user types. The client normalises the text
+     * with Postcode::normalize(). It sends no request for text that is empty, longer than a
+     * postcode, or holds a character other than A to Z and 0 to 9. A timeout ends the call
+     * without a retry, because the next keystroke replaces it.
+     *
+     * ```php
+     * $result = $client->autocomplete('fc01z');
+     * echo $result->segment->value; // district
+     * echo $result->suggestions[0]->postcode?->canonical; // FC-01-Z99
+     * ```
+     *
+     * @param string $q The text that the user typed.
+     *
+     * @throws PostcodeException For text that fails the check, and for each failure of the
+     *                           gateway.
+     */
+    public function autocomplete(string $q): AutocompleteResult
+    {
+        // Like the other clients, refuse text over the input limit of the core before the
+        // normalisation, which has no limit of its own. A string that is not UTF-8 fails here too.
+        $typed = \preg_match(self::WITHIN_INPUT_LIMIT, $q) === 1 ? Postcode::normalize($q) : '';
+        if (\preg_match(self::AUTOCOMPLETE_TEXT, $typed) !== 1) {
+            throw PostcodeException::invalidInput(
+                'The text must hold 1 to 11 letters A to Z and digits 0 to 9, after spaces and '
+                    . 'hyphens are removed. Send no request until the user types one.',
+            );
+        }
+        $response = $this->send(
+            $this->autocompleteSender,
+            '/v1/search/autocomplete',
+            ['q' => $typed],
+            retryTimeouts: false,
+        );
+
+        return AutocompleteResult::fromResponse($response, $typed);
     }
 
     /**
@@ -135,11 +229,28 @@ final class PostcodeClient
     }
 
     /**
+     * The number in its shortest decimal form, after a check of its range.
+     *
+     * @throws PostcodeException For a number that is not finite or outside its range.
+     */
+    private static function decimal(string $name, float $number, int $max, ?int $min = null): string
+    {
+        $min ??= -$max;
+        if (!\is_finite($number) || $number < $min || $number > $max) {
+            throw PostcodeException::invalidInput(
+                "{$name} must be a number from {$min} to {$max}.",
+            );
+        }
+
+        return Decimal::shortest($number);
+    }
+
+    /**
      * @param array<string, string|int> $query
      *
      * @throws PostcodeException
      */
-    private function send(string $path, array $query, bool $retryTimeouts): mixed
+    private function send(Sender $sender, string $path, array $query, bool $retryTimeouts): mixed
     {
         $url = $this->baseUrl . $path . '?' . \http_build_query($query);
         $request = $this->requestFactory->createRequest('GET', $url);
@@ -147,6 +258,6 @@ final class PostcodeClient
             $request = $request->withHeader('X-API-Key', $this->apiKey);
         }
 
-        return $this->sender->send($request, $retryTimeouts);
+        return $sender->send($request, $retryTimeouts);
     }
 }

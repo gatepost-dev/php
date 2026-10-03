@@ -67,6 +67,60 @@ final class Fields
     /**
      * @param array<array-key, mixed> $fields
      *
+     * @return list<mixed>
+     *
+     * @throws PostcodeException When the field is missing or is not a JSON array.
+     */
+    public static function list(array $fields, string $name): array
+    {
+        $value = $fields[$name] ?? null;
+        if (!\is_array($value) || !\array_is_list($value)) {
+            throw PostcodeException::unreadable(200);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $fields
+     *
+     * @throws PostcodeException When the field is missing or is not text.
+     */
+    public static function string(array $fields, string $name): string
+    {
+        $value = $fields[$name] ?? null;
+        if (!\is_string($value)) {
+            throw PostcodeException::unreadable(200);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $fields
+     *
+     * @throws PostcodeException When the field is missing or is not a finite number.
+     */
+    public static function number(array $fields, string $name): float
+    {
+        return self::numberOrNull($fields, $name) ?? throw PostcodeException::unreadable(200);
+    }
+
+    /**
+     * @param array<array-key, mixed> $fields
+     *
+     * @return ?float The number, or null when the field is absent, null or not a finite number.
+     */
+    public static function numberOrNull(array $fields, string $name): ?float
+    {
+        $value = $fields[$name] ?? null;
+
+        return (\is_int($value) || \is_float($value)) && \is_finite($value) ? (float) $value : null;
+    }
+
+    /**
+     * @param array<array-key, mixed> $fields
+     *
      * @return ?string The text, or null when the field is absent, null or not text.
      */
     public static function textOrNull(array $fields, string $name): ?string

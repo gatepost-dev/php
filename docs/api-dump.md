@@ -13,6 +13,19 @@ final class AdministrativeAddress
     public readonly ?string $zone;
 }
 
+final class AutocompleteResult
+{
+    public readonly \Gatepost\Postcode\Precision $segment;
+    public readonly array $suggestions;
+}
+
+enum Confidence: string
+{
+    case High = 'high';
+    case Medium = 'medium';
+    case Low = 'low';
+}
+
 enum ErrorCode: string
 {
     case InvalidInput = 'invalid_input';
@@ -41,8 +54,10 @@ final class LookupResult
 
 final class PostcodeClient
 {
-    public function __construct(\Psr\Http\Client\ClientInterface $transport, \Psr\Http\Message\RequestFactoryInterface $requestFactory, ?string $apiKey = null, string $baseUrl = 'https://api.postcode.gov.ng', int $timeoutMs = 8000, int $maxRetries = 2);
+    public function __construct(\Psr\Http\Client\ClientInterface $transport, \Psr\Http\Message\RequestFactoryInterface $requestFactory, ?string $apiKey = null, string $baseUrl = 'https://api.postcode.gov.ng', ?int $timeoutMs = null, int $maxRetries = 2);
     public function lookup(\Gatepost\Postcode\Postcode|string $code, int $level = 1): LookupResult;
+    public function reverse(float $lat, float $lng, ?float $maxDistanceM = null): ReverseResult;
+    public function autocomplete(string $q): AutocompleteResult;
 }
 
 final class PostcodeException extends \RuntimeException
@@ -51,6 +66,34 @@ final class PostcodeException extends \RuntimeException
     public function status(): ?int;
     public function apiCode(): ?string;
     public function retryAfterMs(): ?int;
+}
+
+final class ReverseResult
+{
+    public readonly bool $found;
+    public readonly ?float $radiusM;
+    public readonly ?ReverseUnit $unit;
+    public readonly ?string $area;
+    public readonly ?string $district;
+    public readonly ?string $state;
+}
+
+final class ReverseUnit
+{
+    public readonly \Gatepost\Postcode\Postcode $postcode;
+    public readonly float $distanceM;
+    public readonly Confidence $confidence;
+    public readonly ?string $stateName;
+    public readonly ?string $lgaName;
+    public readonly ?string $localityName;
+    public readonly ?string $address;
+}
+
+final class Suggestion
+{
+    public readonly string $code;
+    public readonly ?string $label;
+    public readonly ?\Gatepost\Postcode\Postcode $postcode;
 }
 
 namespace Gatepost\Postcode;

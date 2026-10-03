@@ -82,4 +82,53 @@ final class FieldsTest extends TestCase
 
         Fields::object($value);
     }
+
+    #[Test]
+    public function readsAListAndRefusesAnythingElse(): void
+    {
+        self::assertSame([1, 'a'], Fields::list(['a' => [1, 'a']], 'a'));
+        self::assertSame([], Fields::list(['a' => []], 'a'));
+        foreach ([['a' => ['k' => 1]], ['a' => 'text'], ['a' => null], []] as $fields) {
+            try {
+                Fields::list($fields, 'a');
+                self::fail('The reader accepted a value that is not a list.');
+            } catch (PostcodeException $error) {
+                self::assertEquals(PostcodeException::unreadable(200), $error);
+            }
+        }
+    }
+
+    #[Test]
+    public function readsATextFieldAndRefusesAnythingElse(): void
+    {
+        self::assertSame('x', Fields::string(['a' => 'x'], 'a'));
+        foreach ([['a' => 1], ['a' => null], []] as $fields) {
+            try {
+                Fields::string($fields, 'a');
+                self::fail('The reader accepted a value that is not text.');
+            } catch (PostcodeException $error) {
+                self::assertEquals(PostcodeException::unreadable(200), $error);
+            }
+        }
+    }
+
+    #[Test]
+    public function readsANumberAsAFloatAndGivesNullForAnythingElse(): void
+    {
+        $fields = ['i' => 4, 'f' => 4.5, 's' => '4', 'n' => null, 'big' => \INF, 'b' => true];
+
+        self::assertSame(4.0, Fields::number($fields, 'i'));
+        self::assertSame(4.5, Fields::numberOrNull($fields, 'f'));
+        foreach (['s', 'n', 'big', 'b', 'missing'] as $name) {
+            self::assertNull(Fields::numberOrNull($fields, $name));
+        }
+    }
+
+    #[Test]
+    public function refusesAFieldThatIsNotANumberWhenTheNumberIsRequired(): void
+    {
+        $this->expectExceptionObject(PostcodeException::unreadable(200));
+
+        Fields::number(['a' => '4'], 'a');
+    }
 }
