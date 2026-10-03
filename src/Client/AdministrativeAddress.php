@@ -16,14 +16,14 @@ use Gatepost\Postcode\Client\Internal\Fields;
 final class AdministrativeAddress
 {
     private function __construct(
-        /** The name of the state. */
-        public readonly string $stateName,
-        /** The name of the local government area. */
-        public readonly string $lgaName,
-        /** The name of the locality. */
-        public readonly string $localityName,
-        /** The geopolitical zone, such as NORTH CENTRAL. */
-        public readonly string $zone,
+        /** The name of the state, or null when the gateway sent none. */
+        public readonly ?string $stateName,
+        /** The name of the local government area, or null. */
+        public readonly ?string $lgaName,
+        /** The name of the locality, or null. */
+        public readonly ?string $localityName,
+        /** The geopolitical zone, such as NORTH CENTRAL, or null. */
+        public readonly ?string $zone,
     ) {}
 
     /**
@@ -31,15 +31,15 @@ final class AdministrativeAddress
      *
      * @param array<array-key, mixed> $fields
      *
-     * @throws PostcodeException When a field is missing or is not text.
+     * A name that is missing or is not text is null.
      */
     public static function fromFields(array $fields): self
     {
         return new self(
-            Fields::string($fields, 'state_name'),
-            Fields::string($fields, 'lga_name'),
-            Fields::string($fields, 'locality_name'),
-            Fields::string($fields, 'zone'),
+            Fields::textOrNull($fields, 'state_name'),
+            Fields::textOrNull($fields, 'lga_name'),
+            Fields::textOrNull($fields, 'locality_name'),
+            Fields::textOrNull($fields, 'zone'),
         );
     }
 }

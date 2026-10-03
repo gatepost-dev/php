@@ -55,7 +55,8 @@ final class LookupResult
     /**
      * @internal PostcodeClient reads each lookup response with this method.
      *
-     * @throws PostcodeException When a known field is missing or has the wrong type.
+     * @throws PostcodeException When valid is missing or is not true or false, or when status is
+     *                           neither null nor text. Other parts of the wrong type give null.
      */
     public static function fromResponse(
         mixed $response,
@@ -63,8 +64,8 @@ final class LookupResult
         int $levelRequested,
     ): self {
         $fields = Fields::object($response);
-        $address = Fields::optionalObject($fields, 'administrative_address');
-        $recent = Fields::optionalObject($fields, 'recent_house_address');
+        $address = Fields::objectOrNull($fields, 'administrative_address');
+        $recent = Fields::objectOrNull($fields, 'recent_house_address');
 
         return new self(
             $postcode,
@@ -73,8 +74,8 @@ final class LookupResult
             $levelRequested,
             self::levelReceived($fields),
             $address === null ? null : AdministrativeAddress::fromFields($address),
-            $recent === null ? null : Fields::optionalString($recent, 'recent'),
-            Fields::optionalString($fields, 'building_use_status'),
+            $recent === null ? null : Fields::textOrNull($recent, 'recent'),
+            Fields::textOrNull($fields, 'building_use_status'),
         );
     }
 

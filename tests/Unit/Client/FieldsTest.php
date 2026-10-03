@@ -37,6 +37,30 @@ final class FieldsTest extends TestCase
         self::assertSame($value, Fields::object($value));
     }
 
+    #[Test]
+    public function readsAnObjectFieldAsNullWhenItIsNotAnObject(): void
+    {
+        $fields = ['a' => ['x' => 1], 'b' => 'text', 'c' => [1], 'd' => null];
+
+        self::assertSame(['x' => 1], Fields::objectOrNull($fields, 'a'));
+        self::assertNull(Fields::objectOrNull($fields, 'b'));
+        self::assertNull(Fields::objectOrNull($fields, 'c'));
+        self::assertNull(Fields::objectOrNull($fields, 'd'));
+        self::assertNull(Fields::objectOrNull($fields, 'missing'));
+    }
+
+    #[Test]
+    public function readsATextFieldAsNullWhenItIsNotText(): void
+    {
+        $fields = ['a' => 'x', 'b' => 5, 'c' => ['x'], 'd' => null];
+
+        self::assertSame('x', Fields::textOrNull($fields, 'a'));
+        self::assertNull(Fields::textOrNull($fields, 'b'));
+        self::assertNull(Fields::textOrNull($fields, 'c'));
+        self::assertNull(Fields::textOrNull($fields, 'd'));
+        self::assertNull(Fields::textOrNull($fields, 'missing'));
+    }
+
     /**
      * @return array<string, array{mixed}>
      */

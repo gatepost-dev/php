@@ -7,10 +7,10 @@ namespace Gatepost\Postcode\Client;
 
 final class AdministrativeAddress
 {
-    public readonly string $stateName;
-    public readonly string $lgaName;
-    public readonly string $localityName;
-    public readonly string $zone;
+    public readonly ?string $stateName;
+    public readonly ?string $lgaName;
+    public readonly ?string $localityName;
+    public readonly ?string $zone;
 }
 
 enum ErrorCode: string

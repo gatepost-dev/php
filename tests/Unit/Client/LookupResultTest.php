@@ -128,27 +128,19 @@ final class LookupResultTest extends TestCase
      */
     public static function unreadableBodies(): array
     {
-        $noZone = ['state_name' => 'S', 'lga_name' => 'L', 'locality_name' => 'C'];
-
         return [
             'a list in place of an object' => [[['valid' => true]]],
             'no valid field' => [['status' => 'valid']],
             'valid as text' => [['valid' => 'true']],
-            'an address as text' => [['valid' => true, 'administrative_address' => 'SYNTHETIC']],
-            'an address with no zone' => [['valid' => true, 'administrative_address' => $noZone]],
             'a status that is a number' => [['valid' => true, 'status' => 5]],
             'a status that is a list' => [['valid' => true, 'status' => ['valid']]],
             'valid as null' => [['valid' => null]],
-            'an address that is a list' => [['valid' => true, 'administrative_address' => [1]]],
-            'a recent address that is a number' => [
-                ['valid' => true, 'recent_house_address' => ['recent' => 7]],
-            ],
         ];
     }
 
     #[Test]
     #[DataProvider('unreadableBodies')]
-    public function failsWithUnexpectedResponseWhenAKnownFieldHasTheWrongType(mixed $response): void
+    public function failsWithUnexpectedResponseWhenValidOrStatusIsUnreadable(mixed $response): void
     {
         try {
             LookupResult::fromResponse($response, self::unit(), 1);

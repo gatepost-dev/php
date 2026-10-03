@@ -19,6 +19,9 @@ use Gatepost\Postcode\Client\PostcodeException;
 final class Fields
 {
     /**
+     * A JSON object whose keys are only 0, 1, 2 and so on reads as a list, so it fails here too.
+     * No shape of the gateway has such keys.
+     *
      * @return array<array-key, mixed>
      *
      * @throws PostcodeException When the value is not a JSON object.
@@ -33,17 +36,17 @@ final class Fields
     }
 
     /**
-     * @return ?array<array-key, mixed> The object, or null when the field is absent or null.
-     *
      * @param array<array-key, mixed> $fields
      *
-     * @throws PostcodeException When the field is not a JSON object.
+     * @return ?array<array-key, mixed> The object, or null when the field is absent, null or not
+     *                                  an object. The parts outside the closed list of
+     *                                  spec/client.md never fail a call that the gateway charged.
      */
-    public static function optionalObject(array $fields, string $name): ?array
+    public static function objectOrNull(array $fields, string $name): ?array
     {
         $value = $fields[$name] ?? null;
 
-        return $value === null ? null : self::object($value);
+        return \is_array($value) && ($value === [] || !\array_is_list($value)) ? $value : null;
     }
 
     /**
@@ -64,11 +67,13 @@ final class Fields
     /**
      * @param array<array-key, mixed> $fields
      *
-     * @throws PostcodeException When the field is missing or is not text.
+     * @return ?string The text, or null when the field is absent, null or not text.
      */
-    public static function string(array $fields, string $name): string
+    public static function textOrNull(array $fields, string $name): ?string
     {
-        return self::optionalString($fields, $name) ?? throw PostcodeException::unreadable(200);
+        $value = $fields[$name] ?? null;
+
+        return \is_string($value) ? $value : null;
     }
 
     /**

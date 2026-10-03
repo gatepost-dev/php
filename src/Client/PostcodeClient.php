@@ -91,7 +91,8 @@ final class PostcodeClient
      * ```
      *
      * @param string|Postcode $code  A full postcode, as text or as a parsed postcode.
-     * @param int             $level The lookup level, from 1 to 5.
+     * @param int             $level The lookup level, from 1 to 5. PHP's own type check
+     *                               refuses a value that is not a whole number.
      *
      * @throws PostcodeException For a code that fails the check, for a level outside 1 to 5,
      *                           and for each failure of the gateway. The client sends no
