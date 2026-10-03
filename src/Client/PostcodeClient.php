@@ -327,7 +327,11 @@ final class PostcodeClient
      */
     private function url(string $path, array $query): string
     {
-        return $this->baseUrl . $path . '?' . \http_build_query($query);
+        // An explicit separator: a host can set arg_separator.output to &amp;, and the gateway
+        // then reads no second parameter.
+        $text = \http_build_query($query, '', '&', \PHP_QUERY_RFC3986);
+
+        return $this->baseUrl . $path . '?' . $text;
     }
 
     /**
@@ -348,7 +352,8 @@ final class PostcodeClient
         Closure $read,
         bool $retryTimeouts,
     ): mixed {
-        $request = $this->requestFactory->createRequest('GET', $url);
+        $request = $this->requestFactory->createRequest('GET', $url)
+            ->withHeader('Accept', 'application/json');
         if ($this->apiKey !== null) {
             $request = $request->withHeader('X-API-Key', $this->apiKey);
         }

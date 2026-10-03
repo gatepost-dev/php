@@ -37,6 +37,7 @@ final class LookupRequestTest extends TestCase
             (string) $request->getUri(),
         );
         self::assertSame([self::KEY], $request->getHeader('X-API-Key'));
+        self::assertSame(['application/json'], $request->getHeader('Accept'));
     }
 
     #[Test]
