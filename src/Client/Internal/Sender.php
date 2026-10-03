@@ -30,7 +30,28 @@ final class Sender
     private const MAX_JITTER_MS = 250;
     private const LONGEST_RETRY_AFTER_MS = 10_000;
     private const RETRIED_STATUSES = [502, 503, 504];
-    private const HTTP_DATE = 'D, d M Y H:i:s \G\M\T';
+    // The three HTTP date forms of RFC 9110: IMF-fixdate, RFC 850 and asctime. Each entry holds a
+    // pattern that splits the weekday from the rest, the format of the rest, and the format that
+    // writes the weekday back. The format of createFromFormat() would move a date to the weekday
+    // that it reads, so the client reads the date without its weekday and compares the weekdays.
+    private const HTTP_DATES = [
+        [
+            '/\A([A-Z][a-z]{2}), (\d\d [A-Z][a-z]{2} \d{4} \d\d:\d\d:\d\d GMT)\z/',
+            'd M Y H:i:s \G\M\T',
+            'D',
+        ],
+        [
+            '/\A([A-Z][a-z]+day), (\d\d-[A-Z][a-z]{2}-\d\d \d\d:\d\d:\d\d GMT)\z/',
+            'd-M-y H:i:s \G\M\T',
+            'l',
+        ],
+        [
+            // A day of one digit has a space before it, so two spaces follow the month.
+            '/\A([A-Z][a-z]{2}) ([A-Z][a-z]{2} (?: \d|\d\d) \d\d:\d\d:\d\d \d{4})\z/',
+            'M j H:i:s Y',
+            'D',
+        ],
+    ];
 
     public function __construct(
         private readonly ClientInterface $transport,
@@ -189,8 +210,8 @@ final class Sender
 
     /**
      * The wait that the Retry-After header of a 429, 502, 503 or 504 asks for, as seconds or as
-     * an HTTP date. A header in another form counts as no header, and so does a date in the past
-     * or a date that does not exist.
+     * an HTTP date. A header in another form counts as no header, and so does a date in the past,
+     * a date that does not exist and a date with the wrong weekday.
      */
     private function retryAfterMs(ResponseInterface $response): ?int
     {
@@ -203,14 +224,29 @@ final class Sender
         if (\preg_match('/\A\d{1,12}\z/', $value) === 1) {
             return (int) $value * 1000;
         }
-        $utc = new DateTimeZone('UTC');
-        $date = DateTimeImmutable::createFromFormat(self::HTTP_DATE, $value, $utc);
-        $problems = DateTimeImmutable::getLastErrors();
-        if ($date === false || ($problems !== false && $problems['warning_count'] > 0)) {
+        $date = self::httpDate($value);
+        if ($date === null) {
             return null;
         }
         $waitMs = (int) \ceil($date->getTimestamp() * 1000 - $this->timer->nowMs());
 
         return $waitMs < 0 ? null : $waitMs;
+    }
+
+    private static function httpDate(string $value): ?DateTimeImmutable
+    {
+        foreach (self::HTTP_DATES as [$shape, $format, $weekdayFormat]) {
+            if (\preg_match($shape, $value, $parts) !== 1) {
+                continue;
+            }
+            $rest = \preg_replace('/ +/', ' ', $parts[2]) ?? $parts[2];
+            $date = DateTimeImmutable::createFromFormat($format, $rest, new DateTimeZone('UTC'));
+            $problems = DateTimeImmutable::getLastErrors();
+            $isDate = $date !== false && ($problems === false || $problems['warning_count'] === 0);
+
+            return $isDate && $date->format($weekdayFormat) === $parts[1] ? $date : null;
+        }
+
+        return null;
     }
 }

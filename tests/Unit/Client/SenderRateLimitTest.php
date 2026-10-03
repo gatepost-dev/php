@@ -26,6 +26,8 @@ final class SenderRateLimitTest extends SenderTestCase
             'one second' => ['1', 1000],
             'ten seconds, the longest that the client waits' => ['10', 10_000],
             'an HTTP date three seconds ahead' => ['Mon, 12 Oct 2026 09:00:03 GMT', 3000],
+            'an RFC 850 date three seconds ahead' => ['Monday, 12-Oct-26 09:00:03 GMT', 3000],
+            'an asctime date three seconds ahead' => ['Mon Oct 12 09:00:03 2026', 3000],
             'an HTTP date in the current second' => ['Mon, 12 Oct 2026 09:00:00 GMT', 0],
         ];
     }
@@ -60,6 +62,38 @@ final class SenderRateLimitTest extends SenderTestCase
             ],
             'a date that does not exist' => [
                 ['Retry-After' => 'Sat, 31 Feb 2027 09:00:03 GMT'],
+                null,
+            ],
+            'an asctime date with a padded day' => [
+                ['Retry-After' => 'Tue Nov  3 09:00:03 2026'],
+                1_900_803_000,
+            ],
+            'a date with the wrong weekday' => [
+                ['Retry-After' => 'Fri, 12 Oct 2026 09:00:03 GMT'],
+                null,
+            ],
+            'an RFC 850 date with the wrong weekday' => [
+                ['Retry-After' => 'Friday, 12-Oct-26 09:00:03 GMT'],
+                null,
+            ],
+            'an asctime date with the wrong weekday' => [
+                ['Retry-After' => 'Fri Oct 12 09:00:03 2026'],
+                null,
+            ],
+            'a date with a lower case month' => [
+                ['Retry-After' => 'Mon, 12 oct 2026 09:00:03 GMT'],
+                null,
+            ],
+            'a date with a numeric zone' => [
+                ['Retry-After' => 'Mon, 12 Oct 2026 09:00:03 +0000'],
+                null,
+            ],
+            'an asctime date with a zone' => [
+                ['Retry-After' => 'Mon Oct 12 09:00:03 2026 GMT'],
+                null,
+            ],
+            'a date with text after it' => [
+                ['Retry-After' => 'Mon, 12 Oct 2026 09:00:03 GMT and more'],
                 null,
             ],
             'a number of ten digits' => [['Retry-After' => '1000000000'], 1_000_000_000_000],
