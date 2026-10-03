@@ -239,7 +239,8 @@ final class Sender
             if (\preg_match($shape, $value, $parts) !== 1) {
                 continue;
             }
-            $rest = \preg_replace('/ +/', ' ', $parts[2]) ?? $parts[2];
+            // Only the asctime form can hold two spaces in a row, before a day of one digit.
+            $rest = \str_replace('  ', ' ', $parts[2]);
             $date = DateTimeImmutable::createFromFormat($format, $rest, new DateTimeZone('UTC'));
             $problems = DateTimeImmutable::getLastErrors();
             $isDate = $date !== false && ($problems === false || $problems['warning_count'] === 0);
