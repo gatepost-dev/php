@@ -68,7 +68,7 @@ echo Postcode::parse(str_pad($code, 65))->error?->code->value, "\n"; // bad_leng
 | Requirement | Version |
 |---|---|
 | PHP | 8.1 or later |
-| Gatepost spec | 0.1.0 |
+| Gatepost spec | 0.2.0 |
 
 ## Docs
 
