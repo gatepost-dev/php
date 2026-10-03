@@ -115,9 +115,8 @@ final class PostcodeException extends RuntimeException
     }
 
     /**
-     * The wait in milliseconds that a valid Retry-After header of a 429, 502,
-     * 503 or 504 asked for, or null. Tell
-     * the user when to try again.
+     * The wait in milliseconds that a valid Retry-After header of a 429, 502, 503 or 504 asked
+     * for, or null. Tell the user when to try again.
      */
     public function retryAfterMs(): ?int
     {

@@ -54,6 +54,7 @@ final class PostcodeClient
 
     private readonly ?ResultCache $cache;
 
+    // Callers name each option, so the long parameter list does not cost them any clarity.
     /**
      * @param ClientInterface         $transport      A PSR-18 HTTP client. PSR-18 has no timeout,
      *                                                so set the timeout of the transport and pass
@@ -82,9 +83,6 @@ final class PostcodeClient
      *
      * @throws InvalidArgumentException When an option is out of range, the key is empty, or
      *                                  cacheTtlMs is above 0 with no cache.
-     *
-     * Callers name each option, and TELL-3 counts no named or defaulted parameter, so PHPMD's
-     * count of parameters does not apply here.
      *
      * @SuppressWarnings("PHPMD.ExcessiveParameterList")
      */

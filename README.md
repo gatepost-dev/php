@@ -132,9 +132,9 @@ Each call refuses bad input before it sends a request, and throws `ErrorCode::In
 
 ### Handle errors and timeouts
 
-Each failed call throws `PostcodeException`. `errorCode()` gives one of the cases of `ErrorCode`, such as `ErrorCode::RateLimited`. `status()` gives the HTTP status, `apiCode()` gives the gateway's own error code, and `retryAfterMs()` gives the wait that a 429 asked for. `ErrorCode::UnexpectedResponse` means that the gateway answered 200 with a body that the client cannot read. None of the messages of the client holds the API key. Show the user a message for the error code, not the message of the exception, which is for developers.
+Each failed call throws `PostcodeException`. `errorCode()` gives one of the cases of `ErrorCode`, such as `ErrorCode::RateLimited`. `status()` gives the HTTP status, `apiCode()` gives the gateway's own error code, and `retryAfterMs()` gives the wait that the `Retry-After` header of a 429, 502, 503 or 504 asked for. `ErrorCode::UnexpectedResponse` means that the gateway answered 200 with a body that the client cannot read. None of the messages of the client holds the API key. Show the user a message for the error code, not the message of the exception, which is for developers. The exception of a failed connection or timeout holds the failure of your transport as `getPrevious()`. That failure can hold the request with its `X-API-Key` header, so do not log it with its objects.
 
-The client tries a call again after a 502, 503 or 504, a failed connection or a timeout, at most twice by default (`maxRetries`). It waits 500 ms before the first retry and twice as long before the next, plus a random part of up to 250 ms. After a 429, it waits only when `Retry-After` asks for 10 seconds or less. A timeout of `autocomplete` gets no retry, because the next keystroke replaces the call.
+The client tries a call again after a 502, 503 or 504, a failed connection or a timeout, at most twice by default (`maxRetries`). It waits 500 ms before the first retry and twice as long before the next, plus a random part of up to 250 ms. After a 429, it waits only when `Retry-After` asks for 10 seconds or less. After a 502, 503 or 504, it waits for a valid `Retry-After` of 10 seconds or less in place of its own wait. `Retry-After` can hold seconds or an HTTP date in any of the three forms of RFC 9110. A timeout of `autocomplete` gets no retry, because the next keystroke replaces the call.
 
 PSR-18 has no timeout, so the client cannot stop a slow attempt. Set the timeout on your HTTP client, and pass the same value as `timeoutMs`, as the examples do with 15 seconds. The client applies `timeoutMs` to every call, because one transport holds one timeout. 15 seconds is long enough for `autocomplete`, whose default wait is 15 seconds. The other calls wait 8 seconds by default, and `timeoutMs` replaces that value. The client reports a failed attempt that took `timeoutMs` or more as `ErrorCode::Timeout`, and a failure that came sooner as `ErrorCode::NetworkError`. If the two values differ, the client reads a slow failure with the wrong code, and tries it again when it should not.
 
@@ -142,7 +142,7 @@ PSR-18 has no timeout, so the client cannot stop a slow attempt. Set the timeout
 
 The client keeps no result by default. To keep results, pass `cacheTtlMs` and a PSR-16 `cache`, such as the cache of your framework. An identical call within that time gets the kept result with no request. The client never keeps an error.
 
-The client sets no size bound of its own, so use a store with eviction, such as Redis or APCu with a size limit. A store with no bound grows with each different postcode that you look up. The cache keys hold a keyed hash of the call, never the API key or the postcode in the clear. Two clients with the same API key and the same cache share their results.
+The client sets no size bound of its own, so use a store with eviction, such as Redis or APCu with a size limit. A store with no bound grows with each different postcode that you look up. The cache keys hold a keyed hash of the call, never the API key or the postcode in the clear. Two clients with the same API key, the same base URL and the same cache share their results.
 
 A cache that fails never fails a call. The client reads a failed read as a miss, and skips a failed write. `clearCache()` is the exception. It removes every result that the clients of the same cache kept, also for another API key, and leaves the other entries of the cache alone. When the store fails, `clearCache()` throws the failure, so that you do not read old results after you asked to remove them.
 
@@ -175,7 +175,7 @@ composer --working-dir=tools/bc-check install --ignore-platform-req=ext-intl
 composer check
 ```
 
-`composer check` runs no contract scenario and no example of the client, because they need the mock server, which runs on Node 22.22.2 or later. CI runs them in its `contract` job. To run them yourself, clone the js repo next to this one, start its mock server with this repo's spec, and run `composer contract`:
+`composer check` runs no contract scenario and no example of the client, because they need the mock server, which runs on Node 22.22.2 or later in the 22 line, or on Node 24.15.0 or later. CI runs them in its `contract` job. To run them yourself, clone the js repo next to this one, start its mock server with this repo's spec, and run `composer contract`:
 
 ```sh
 git clone --depth 1 https://github.com/gatepost-dev/js ../js
