@@ -5,6 +5,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          cacheDirectory="build/phpunit"
+         defaultTestSuite="unit"
          colors="true"
          executionOrder="random"
          failOnDeprecation="true"
@@ -17,8 +18,13 @@
         <ini name="memory_limit" value="512M"/>
     </php>
     <testsuites>
-        <testsuite name="core">
+        <testsuite name="unit">
             <directory>tests</directory>
+            <exclude>tests/Contract</exclude>
+        </testsuite>
+        <!-- composer contract runs this suite. It needs a running mock server. -->
+        <testsuite name="contract">
+            <directory>tests/Contract</directory>
         </testsuite>
     </testsuites>
     <source>

@@ -104,3 +104,52 @@ jobs:
             require "vendor/autoload.php";
             echo Gatepost\Postcode\Postcode::parse("ek 01 a03 fk 01")->value->canonical;
           ' | grep -x 'EK-01-A03-FK-01'
+
+  # The client must pass each contract scenario of the spec against the mock server. The mock
+  # server lives in the js repo and runs on Node with no install. It reads the fixtures and the
+  # scenarios of this repo's own spec submodule, so only its code comes from js.
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.5']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gatepost-dev/js
+          # A js commit that holds packages/mock-server. Move it when the mock server changes.
+          ref: 2ee026be7be1272f8d58a3d649722000e6335fdd
+          path: build/js
+          sparse-checkout: packages/mock-server
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          extensions: :intl
+      - run: composer install --no-interaction --no-progress
+      - name: Use the newest PHPUnit on the newest PHP
+        if: matrix.php != '8.1'
+        run: |
+          composer config --unset platform.php
+          composer update --no-interaction --no-progress --with-all-dependencies phpunit/phpunit
+      - name: Start the mock server
+        run: |
+          GATEPOST_SPEC_DIR="$PWD/spec" PORT=4010 \
+            node build/js/packages/mock-server/src/main.ts > "$RUNNER_TEMP/mock.log" 2>&1 &
+          curl --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:4010/healthz
+      - run: composer contract
+        env:
+          GATEPOST_MOCK_URL: http://127.0.0.1:4010
+      - if: failure()
+        run: cat "$RUNNER_TEMP/mock.log"

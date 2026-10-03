@@ -91,6 +91,15 @@ composer --working-dir=tools/bc-check install --ignore-platform-req=ext-intl
 composer check
 ```
 
+`composer check` runs no contract scenario, because the scenarios need the mock server, which runs on Node 22.22.2 or later. CI runs them in its `contract` job. To run them yourself, clone the js repo next to this one, start its mock server with this repo's spec, and run `composer contract`:
+
+```sh
+git clone --depth 1 https://github.com/gatepost-dev/js ../js
+GATEPOST_SPEC_DIR="$PWD/spec" PORT=4010 node ../js/packages/mock-server/src/main.ts &
+GATEPOST_MOCK_URL=http://127.0.0.1:4010 composer contract
+kill %1
+```
+
 The BC check tool lists ext-intl as a requirement. Its check runs without that extension, so the install line ignores the requirement. The line also works on a machine that has ext-intl.
 
 ## Licence
