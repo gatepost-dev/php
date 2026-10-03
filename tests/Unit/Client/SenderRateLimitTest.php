@@ -28,6 +28,9 @@ final class SenderRateLimitTest extends SenderTestCase
             'an HTTP date three seconds ahead' => ['Mon, 12 Oct 2026 09:00:03 GMT', 3000],
             'an RFC 850 date three seconds ahead' => ['Monday, 12-Oct-26 09:00:03 GMT', 3000],
             'an asctime date three seconds ahead' => ['Mon Oct 12 09:00:03 2026', 3000],
+            'an HTTP date with the wrong weekday' => ['Fri, 12 Oct 2026 09:00:03 GMT', 3000],
+            'an RFC 850 date with the wrong weekday' => ['Friday, 12-Oct-26 09:00:03 GMT', 3000],
+            'an asctime date with the wrong weekday' => ['Fri Oct 12 09:00:03 2026', 3000],
             'an HTTP date in the current second' => ['Mon, 12 Oct 2026 09:00:00 GMT', 0],
         ];
     }
@@ -67,18 +70,6 @@ final class SenderRateLimitTest extends SenderTestCase
             'an asctime date with a padded day' => [
                 ['Retry-After' => 'Tue Nov  3 09:00:03 2026'],
                 1_900_803_000,
-            ],
-            'a date with the wrong weekday' => [
-                ['Retry-After' => 'Fri, 12 Oct 2026 09:00:03 GMT'],
-                null,
-            ],
-            'an RFC 850 date with the wrong weekday' => [
-                ['Retry-After' => 'Friday, 12-Oct-26 09:00:03 GMT'],
-                null,
-            ],
-            'an asctime date with the wrong weekday' => [
-                ['Retry-After' => 'Fri Oct 12 09:00:03 2026'],
-                null,
             ],
             'a date that rolls over, with the weekday of the new date' => [
                 ['Retry-After' => 'Wed, 31 Feb 2027 09:00:03 GMT'],

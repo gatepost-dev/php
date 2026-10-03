@@ -31,25 +31,22 @@ final class Sender
     private const LONGEST_RETRY_AFTER_MS = 10_000;
     private const RETRIED_STATUSES = [502, 503, 504];
     // The three HTTP date forms of RFC 9110: IMF-fixdate, RFC 850 and asctime. Each entry holds a
-    // pattern that splits the weekday from the rest, the format of the rest, and the format that
-    // writes the weekday back. The format of createFromFormat() would move a date to the weekday
-    // that it reads, so the client reads the date without its weekday and compares the weekdays.
+    // pattern and the format of the date in it. The pattern reads the day name but the client does
+    // not check it, as RFC 9110 does not require it. The format of createFromFormat() would move a
+    // date to the day name that it reads, so the format has no day name.
     private const HTTP_DATES = [
         [
-            '/\A([A-Z][a-z]{2}), (\d\d [A-Z][a-z]{2} \d{4} \d\d:\d\d:\d\d GMT)\z/',
+            '/\A[A-Z][a-z]{2}, (\d\d [A-Z][a-z]{2} \d{4} \d\d:\d\d:\d\d GMT)\z/',
             'd M Y H:i:s \G\M\T',
-            'D',
         ],
         [
-            '/\A([A-Z][a-z]+day), (\d\d-[A-Z][a-z]{2}-\d\d \d\d:\d\d:\d\d GMT)\z/',
+            '/\A[A-Z][a-z]+day, (\d\d-[A-Z][a-z]{2}-\d\d \d\d:\d\d:\d\d GMT)\z/',
             'd-M-y H:i:s \G\M\T',
-            'l',
         ],
         [
             // A day of one digit has a space before it, so two spaces follow the month.
-            '/\A([A-Z][a-z]{2}) ([A-Z][a-z]{2} (?: \d|\d\d) \d\d:\d\d:\d\d \d{4})\z/',
+            '/\A[A-Z][a-z]{2} ([A-Z][a-z]{2} (?: \d|\d\d) \d\d:\d\d:\d\d \d{4})\z/',
             'M j H:i:s Y',
-            'D',
         ],
     ];
 
@@ -210,8 +207,8 @@ final class Sender
 
     /**
      * The wait that the Retry-After header of a 429, 502, 503 or 504 asks for, as seconds or as
-     * an HTTP date. A header in another form counts as no header, and so does a date in the past,
-     * a date that does not exist and a date with the wrong weekday.
+     * an HTTP date. A header in another form counts as no header, and so does a date in the past
+     * and a date that does not exist. The day name of a date is not checked.
      */
     private function retryAfterMs(ResponseInterface $response): ?int
     {
@@ -235,17 +232,17 @@ final class Sender
 
     private static function httpDate(string $value): ?DateTimeImmutable
     {
-        foreach (self::HTTP_DATES as [$shape, $format, $weekdayFormat]) {
+        foreach (self::HTTP_DATES as [$shape, $format]) {
             if (\preg_match($shape, $value, $parts) !== 1) {
                 continue;
             }
             // Only the asctime form can hold two spaces in a row, before a day of one digit.
-            $rest = \str_replace('  ', ' ', $parts[2]);
+            $rest = \str_replace('  ', ' ', $parts[1]);
             $date = DateTimeImmutable::createFromFormat($format, $rest, new DateTimeZone('UTC'));
             $problems = DateTimeImmutable::getLastErrors();
             $isDate = $date !== false && ($problems === false || $problems['warning_count'] === 0);
 
-            return $isDate && $date->format($weekdayFormat) === $parts[1] ? $date : null;
+            return $isDate ? $date : null;
         }
 
         return null;
