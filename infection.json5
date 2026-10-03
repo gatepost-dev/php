@@ -4,8 +4,14 @@
     "$schema": "tools/infection/vendor/infection/infection/resources/schema.json",
     "source": {
         "directories": ["src"],
-        // The generator writes these files, and its --check mode keeps them in step.
-        "excludes": ["Internal/NfkcTable.php", "Internal/SpecData.php"],
+        // The generator writes the first two files, and its --check mode keeps them in step. The
+        // unit tests never sleep (T-5), so they cannot measure the real waits of SystemTimer. The
+        // contract scenarios measure them against the mock server.
+        "excludes": [
+            "Internal/NfkcTable.php",
+            "Internal/SpecData.php",
+            "Client/Internal/SystemTimer.php",
+        ],
     },
     "phpUnit": {
         "customPath": "vendor/bin/phpunit",
