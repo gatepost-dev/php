@@ -75,7 +75,7 @@
         "licences": "uvx --with charset-normalizer==3.5.2 reuse@6.2.0 lint",
         "mutation": [
             "@putenv XDEBUG_MODE=coverage",
-            "tools/infection/vendor/bin/infection --threads=max"
+            "tools/infection/vendor/bin/infection --threads=max --show-mutations=0"
         ],
         "phpmd": "@php -d error_reporting=24575 vendor/bin/phpmd scripts,src,tests text phpmd.xml",
         "phpstan": "phpstan analyse --no-progress",

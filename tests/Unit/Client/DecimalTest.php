@@ -24,6 +24,7 @@ final class DecimalTest extends TestCase
     public static function numbers(): array
     {
         return [
+            'one' => [1.0, '1'],
             'a whole number' => [9.0, '9'],
             'a whole number with zeros' => [250.0, '250'],
             'a negative whole number' => [-90.0, '-90'],

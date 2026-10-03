@@ -47,7 +47,8 @@ final class Decimal
     {
         [$mantissa, $exponent] = \explode('e', $scientific);
         $sign = \str_starts_with($mantissa, '-') ? '-' : '';
-        $digits = \rtrim(\str_replace(['-', '.'], '', $mantissa), '0');
+        // The search stops at the fewest digits that read back, so the last digit is not 0.
+        $digits = \str_replace(['-', '.'], '', $mantissa);
         // The count of digits before the decimal point.
         $whole = (int) $exponent + 1;
         if ($whole <= 0) {
