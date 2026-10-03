@@ -24,7 +24,8 @@ use SplFileInfo;
  * A line that ends with a comment shows a result. `echo $postcode->redact(); // EK-01-A03-FK-**`
  * shows the text that the line prints, and `$district->contains($building); // true` shows a value.
  * The doc comment of a method may use the object of that method with no line that makes it, so each
- * example runs after the lines of SETUP.
+ * example runs after the lines of SETUP. The client in SETUP answers from the synthetic fixtures of
+ * the spec, with no network.
  */
 final class DocExamplesTest extends TestCase
 {
@@ -33,6 +34,7 @@ final class DocExamplesTest extends TestCase
         '$postcode = Postcode::parse(\'EK-01-A03-FK-01\')->value;',
         '$building = $postcode;',
         '$district = Postcode::parse(\'EK-01-A03\', allowPartial: true)->value;',
+        '$client = \\Gatepost\\Postcode\\Tests\\Unit\\Client\\FixtureGateway::client();',
     ];
 
     private const COMMENT_MARK = '/^\s*(?:\/\*\*|\*\/|\*)\s?/';
@@ -161,6 +163,7 @@ final class DocExamplesTest extends TestCase
         }, \explode("\n", $example));
 
         return "<?php\n\ndeclare(strict_types=1);\n\nnamespace Gatepost\\Postcode;\n\n"
+            . "use Gatepost\\Postcode\\Client\\PostcodeClient;\n\n"
             . 'return static function (\Closure $shown): void {' . "\n"
             . \implode("\n", [...self::SETUP, ...$lines]) . "\n};\n";
     }
