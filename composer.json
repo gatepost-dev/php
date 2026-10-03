@@ -1,6 +1,6 @@
 {
     "name": "gatepost/postcode",
-    "description": "Unofficial. Not made or endorsed by NIPOST. Parse Nigerian postcodes offline.",
+    "description": "Unofficial. Not made or endorsed by NIPOST. Read and query Nigerian postcodes.",
     "license": "Apache-2.0",
     "type": "library",
     "require": {
