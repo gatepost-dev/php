@@ -26,7 +26,7 @@ final class SenderRateLimitTest extends SenderTestCase
             'one second' => ['1', 1000],
             'ten seconds, the longest that the client waits' => ['10', 10_000],
             'an HTTP date three seconds ahead' => ['Mon, 12 Oct 2026 09:00:03 GMT', 3000],
-            'an HTTP date in the past' => ['Mon, 12 Oct 2026 08:59:00 GMT', 0],
+            'an HTTP date in the current second' => ['Mon, 12 Oct 2026 09:00:00 GMT', 0],
         ];
     }
 
@@ -54,6 +54,15 @@ final class SenderRateLimitTest extends SenderTestCase
             'a Retry-After of eleven seconds' => [['Retry-After' => '11'], 11_000],
             'a Retry-After of two minutes' => [['Retry-After' => '120'], 120_000],
             'a Retry-After that is not a number or a date' => [['Retry-After' => 'soon'], null],
+            'an HTTP date in the past' => [
+                ['Retry-After' => 'Mon, 12 Oct 2026 08:59:00 GMT'],
+                null,
+            ],
+            'a date that does not exist' => [
+                ['Retry-After' => 'Sat, 31 Feb 2027 09:00:03 GMT'],
+                null,
+            ],
+            'a number of ten digits' => [['Retry-After' => '1000000000'], 1_000_000_000_000],
         ];
     }
 

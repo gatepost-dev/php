@@ -168,8 +168,8 @@ final class Sender
 
     /**
      * The wait that the Retry-After header of a 429, 502, 503 or 504 asks for, as seconds or as
-     * an HTTP date. A header in another form counts as no header. A date in the past is valid
-     * for a 429 only.
+     * an HTTP date. A header in another form counts as no header, and so does a date in the past
+     * or a date that does not exist.
      */
     private function retryAfterMs(ResponseInterface $response): ?int
     {
@@ -179,16 +179,17 @@ final class Sender
         if ($value === '' || !$mayWait) {
             return null;
         }
-        if (\preg_match('/\A\d{1,9}\z/', $value) === 1) {
+        if (\preg_match('/\A\d{1,12}\z/', $value) === 1) {
             return (int) $value * 1000;
         }
         $utc = new DateTimeZone('UTC');
         $date = DateTimeImmutable::createFromFormat(self::HTTP_DATE, $value, $utc);
-        if ($date === false) {
+        $problems = DateTimeImmutable::getLastErrors();
+        if ($date === false || ($problems !== false && $problems['warning_count'] > 0)) {
             return null;
         }
         $waitMs = (int) \ceil($date->getTimestamp() * 1000 - $this->timer->nowMs());
 
-        return $waitMs < 0 && $status !== 429 ? null : \max(0, $waitMs);
+        return $waitMs < 0 ? null : $waitMs;
     }
 }

@@ -115,7 +115,8 @@ final class PostcodeException extends RuntimeException
     }
 
     /**
-     * The wait in milliseconds that the Retry-After header of a 429 asked for, or null. Tell
+     * The wait in milliseconds that a valid Retry-After header of a 429, 502,
+     * 503 or 504 asked for, or null. Tell
      * the user when to try again.
      */
     public function retryAfterMs(): ?int
@@ -141,7 +142,9 @@ final class PostcodeException extends RuntimeException
         int $status,
         ?int $retryAfterMs,
     ): string {
-        $wait = $retryAfterMs === null ? 'Wait' : 'Wait ' . \ceil($retryAfterMs / 1000) . ' s';
+        $wait = $retryAfterMs === null || $retryAfterMs === 0
+            ? 'Wait'
+            : 'Wait ' . \ceil($retryAfterMs / 1000) . ' s';
 
         return match ($errorCode) {
             ErrorCode::Unauthorized => "The gateway refused the API key (HTTP {$status}). "
