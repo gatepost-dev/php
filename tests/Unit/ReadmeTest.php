@@ -82,6 +82,30 @@ final class ReadmeTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function clientExampleSections(): array
+    {
+        return [
+            'the check of a postcode' => ['Check a postcode with the gateway'],
+            'the search for a place' => ['Find a place and complete a postcode'],
+        ];
+    }
+
+    // One PSR-18 transport holds one timeout. The client reads a failed attempt by timeoutMs, so
+    // the example must pass the timeout of its transport as timeoutMs too.
+    #[Test]
+    #[DataProvider('clientExampleSections')]
+    public function givesTheTransportTimeoutAndTimeoutMsTheSameValue(string $heading): void
+    {
+        $example = Readme::phpExample(Readme::section($heading));
+
+        self::assertSame(1, \preg_match("/'timeout' => (\d+)/", $example, $transport));
+        self::assertSame(1, \preg_match('/timeoutMs: (\d+),/', $example, $client));
+        self::assertSame((int) $transport[1] * 1000, (int) $client[1]);
+    }
+
     #[Test]
     public function statesTheInputLimitOfTheSpec(): void
     {

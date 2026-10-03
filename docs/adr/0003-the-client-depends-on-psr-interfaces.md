@@ -8,4 +8,4 @@ Guzzle is a dev dependency only. The contract tests use it as the transport.
 
 The constraints allow PSR-7 1.1 and 2.0, and PSR-16 2.0 and 3.0, because older WordPress hosts and frameworks still pin the earlier major versions. The client calls only methods that both majors have.
 
-PSR-18 has no timeout. The caller sets the timeout on the HTTP client, and passes the same value as `timeoutMs`. The client times each attempt, and it reports a failed attempt that took `timeoutMs` or more as `timeout`.
+PSR-18 has no timeout, and one transport holds one timeout. The caller sets the timeout on the HTTP client, and passes the same value as `timeoutMs`. The client uses that value for every call, also for autocomplete, so 15 s covers all calls. It times each attempt, and it reports a failed attempt that took `timeoutMs` or more as `timeout`. A client that needs a shorter timeout for lookups can take a second transport for autocomplete later. That change adds an option and breaks nothing.

@@ -33,6 +33,7 @@ use Psr\SimpleCache\CacheInterface;
  *     new \GuzzleHttp\Client(['timeout' => 15]),
  *     new \GuzzleHttp\Psr7\HttpFactory(),
  *     apiKey: \getenv('NIPOST_API_KEY') ?: null,
+ *     timeoutMs: 15000,
  * );
  * ```
  */
@@ -55,9 +56,9 @@ final class PostcodeClient
 
     /**
      * @param ClientInterface         $transport      A PSR-18 HTTP client. PSR-18 has no timeout,
-     *                                                so set the timeout of the transport to the
-     *                                                longest timeout in use, which is 15 s with
-     *                                                the defaults. The client reads a failed
+     *                                                so set the timeout of the transport and pass
+     *                                                the same value as timeoutMs. 15 s covers
+     *                                                autocomplete. The client reads a failed
      *                                                attempt as a timeout when it took timeoutMs
      *                                                or more, and as a network_error when it
      *                                                took less.
@@ -66,11 +67,11 @@ final class PostcodeClient
      *                                                the client sends no key, and the gateway
      *                                                answers 401.
      * @param string                  $baseUrl        The gateway's address.
-     * @param ?int                    $timeoutMs      The longest wait for one attempt. A failed
-     *                                                attempt that took this long is a timeout.
-     *                                                With null, it is 8000, and 15000 for
-     *                                                autocomplete. Set the timeout of the
-     *                                                transport to this value or more.
+     * @param ?int                    $timeoutMs      The longest wait for one attempt, for
+     *                                                every call. A failed attempt that took this
+     *                                                long is a timeout. With null, it is 8000,
+     *                                                and 15000 for autocomplete. Pass the timeout
+     *                                                of the transport.
      * @param int                     $maxRetries     The most retries after the first attempt.
      * @param int                     $cacheTtlMs     How long the client keeps a result. 0 turns
      *                                                the cache off.
@@ -216,8 +217,9 @@ final class PostcodeClient
      * with Postcode::normalize(). It sends no request for text that is empty, longer than a
      * postcode, or holds a character other than A to Z and 0 to 9. A timeout ends the call
      * without a retry, because the next keystroke replaces it. The call waits 15 s by default,
-     * so the transport needs a timeout of 15 s or more. With a shorter transport timeout, the
-     * failure reads as a network_error, and the client retries it.
+     * so set the timeout of the transport to 15 s and pass the same timeoutMs. With a
+     * shorter transport timeout, the failure reads as a network_error, and the client retries
+     * it.
      *
      * ```php
      * $result = $client->autocomplete('fc01z');

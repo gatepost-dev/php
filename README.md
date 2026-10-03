@@ -84,6 +84,7 @@ $client = new PostcodeClient(
     new Client(['timeout' => 15]),
     new HttpFactory(),
     apiKey: getenv('NIPOST_API_KEY') ?: null,
+    timeoutMs: 15000,
 );
 
 try {
@@ -117,6 +118,7 @@ $client = new PostcodeClient(
     new Client(['timeout' => 15]),
     new HttpFactory(),
     apiKey: getenv('NIPOST_API_KEY') ?: null,
+    timeoutMs: 15000,
 );
 
 $place = $client->reverse(9.0, 7.0);
@@ -134,7 +136,7 @@ Each failed call throws `PostcodeException`. `errorCode()` gives one of the case
 
 The client tries a call again after a 502, 503 or 504, a failed connection or a timeout, at most twice by default (`maxRetries`). It waits 500 ms before the first retry and twice as long before the next, plus a random part of up to 250 ms. After a 429, it waits only when `Retry-After` asks for 10 seconds or less. A timeout of `autocomplete` gets no retry, because the next keystroke replaces the call.
 
-PSR-18 has no timeout, so set the timeout on your HTTP client, and make it the longest timeout in use. `autocomplete` waits 15 seconds for one attempt, and the other calls wait 8 seconds, so the examples set 15. With a shorter timeout on the transport, a slow call fails before the client counts it as a timeout. The client then reads the failure as `ErrorCode::NetworkError` and tries it again. If you pass `timeoutMs`, it applies to every call, and the transport needs that value or more. The client reports a failed attempt that took `timeoutMs` or more as `ErrorCode::Timeout`.
+PSR-18 has no timeout, so the client cannot stop a slow attempt. Set the timeout on your HTTP client, and pass the same value as `timeoutMs`, as the examples do with 15 seconds. The client applies `timeoutMs` to every call, because one transport holds one timeout. 15 seconds is long enough for `autocomplete`, whose default wait is 15 seconds. The other calls wait 8 seconds by default, and `timeoutMs` replaces that value. The client reports a failed attempt that took `timeoutMs` or more as `ErrorCode::Timeout`, and a failure that came sooner as `ErrorCode::NetworkError`. If the two values differ, the client reads a slow failure with the wrong code, and tries it again when it should not.
 
 ### Keep results
 
