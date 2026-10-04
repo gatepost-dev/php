@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/gatepost-dev/php/actions/workflows/ci.yml"><img src="https://github.com/gatepost-dev/php/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://packagist.org/packages/gatepost/postcode"><img src="https://img.shields.io/packagist/v/gatepost/postcode?include_prereleases&label=packagist" alt="Version on Packagist"></a>
   <a href="https://github.com/gatepost-dev/php/blob/main/LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue" alt="Licence: Apache-2.0"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/gatepost-dev/php"><img src="https://api.scorecard.dev/projects/github.com/gatepost-dev/php/badge" alt="OpenSSF Scorecard"></a>
 </p>
@@ -31,7 +32,7 @@
 composer require gatepost/postcode:^0.1@alpha
 ```
 
-The first alpha, `0.1.0-alpha.1`, is a GitHub release only. Packagist does not serve the package yet, so Composer cannot find it there today.
+The first alpha is `0.1.0-alpha.1`. Composer installs an alpha only when the constraint allows it, as this one does.
 
 ## Quickstart
 
