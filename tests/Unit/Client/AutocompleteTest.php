@@ -128,6 +128,8 @@ final class AutocompleteTest extends TestCase
             'a segment that is not one of the five' => [['segment' => 'zone', 'suggestions' => []]],
             'a segment that is a number' => [['segment' => 3, 'suggestions' => []]],
             'no suggestions field' => [['segment' => 'state']],
+            'no segment field' => [['suggestions' => []]],
+            'no segment field with suggestions' => [['suggestions' => [['code' => 'FC']]]],
             'suggestions as an object' => [['segment' => 'state', 'suggestions' => ['a' => 1]]],
             'a code that is a number' => [['segment' => 'lga', 'suggestions' => [['code' => 1]]]],
             'a suggestion with no code' => [
