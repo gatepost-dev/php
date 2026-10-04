@@ -15,6 +15,8 @@ composer check
 
 The BC check tool lists ext-intl as a requirement. Its check runs without that extension, so the install line ignores the requirement. The line also works on a machine that has ext-intl.
 
+`composer api:check` compares the public API with the newest release tag, so run `git fetch --tags` first. It ignores one finding: the value of `Postcode::SPEC_VERSION` changes with each spec version by design, so that change is not a break of the API.
+
 `composer run` lists the other scripts. `composer test` runs the tests without coverage. `composer mutation` runs the mutation tests, and it needs Xdebug.
 
 ## Contract scenarios
