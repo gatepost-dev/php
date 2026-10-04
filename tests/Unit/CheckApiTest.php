@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * scripts/check-api.sh starts the BC check from the newest release tag. These tests run the
  * script in a temporary repo with the tags of one case. A stub takes the place of the BC check
- * tool and prints the tag that the script gave it.
+ * tool. It prints the tag that the script gave it, or the output of the case.
  */
 final class CheckApiTest extends TestCase
 {
@@ -81,6 +81,59 @@ final class CheckApiTest extends TestCase
             'No release tag yet, so there is no released API to compare.',
             $run->output,
         );
+    }
+
+    /**
+     * @return array<string, array{string, int, int, string}>
+     */
+    public static function toolOutputs(): array
+    {
+        $constant = '[BC] CHANGED: Value of constant Gatepost\\Postcode\\Postcode::SPEC_VERSION '
+            . "changed from '0.2.0' to '0.3.0'";
+        $method = '[BC] REMOVED: Method Gatepost\\Postcode\\Postcode::check() was removed';
+        $summary = static fn(int $count): string
+            => "{$count} backwards-incompatible changes detected";
+
+        return [
+            'the constant alone' => [
+                "{$constant}\n{$summary(1)}",
+                3,
+                0,
+                '',
+            ],
+            'the constant and another break' => [
+                "{$constant}\n{$method}\n{$summary(2)}",
+                3,
+                3,
+                "{$method}\n{$summary(1)}",
+            ],
+            'another break alone' => [
+                "{$method}\n{$summary(1)}",
+                3,
+                3,
+                "{$method}\n{$summary(1)}",
+            ],
+            'a failure of the tool' => ['Could not read the tag', 1, 1, 'Could not read the tag'],
+            'a break code with no finding' => ['Odd output', 3, 3, 'Odd output'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('toolOutputs')]
+    public function dropsOnlyTheChangeOfTheSpecVersion(
+        string $toolOutput,
+        int $toolCode,
+        int $exitCode,
+        string $output,
+    ): void {
+        $this->startRepo('v0.1.0');
+        $stub = "{$this->repo}/tools/bc-check/vendor/bin/roave-backward-compatibility-check";
+        \file_put_contents($stub, "#!/bin/sh\ncat <<'END'\n{$toolOutput}\nEND\nexit {$toolCode}\n");
+
+        $run = $this->checkApi();
+
+        self::assertSame($exitCode, $run->exitCode, $run->output);
+        self::assertSame($output, $run->output);
     }
 
     // The repo starts in each test, so that tearDown() removes it even when a git command fails.
