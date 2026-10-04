@@ -169,6 +169,18 @@ _Avoid_: input, widget, picker
 To show the user what a postcode points to before the app stores it.
 _Avoid_: verify, validate (for this step)
 
+**Check status**:
+What the WooCommerce plugin learned about the postcode of an order: `valid`, `invalid`, `unchecked` or `error`. The order meta `_gatepost_postcode_check` holds it.
+_Avoid_: verification status, validation result
+
+**Form value**:
+The text that a field gives its form when the form is sent: the canonical form of a postcode, the 6 digits of a legacy postcode, or the text without white space at the start and the end.
+_Avoid_: submitted value, output
+
+**Message catalogue**:
+A data file that holds the text of a UI in one language, one message for each key.
+_Avoid_: strings file, translations, locale file
+
 **Tell**:
 A habit that makes code look machine-written, such as very long lines.
 _Avoid_: smell (smells are design problems), anti-pattern

@@ -109,7 +109,7 @@ The example uses `FC-01-Z99-ZZ-01`, a synthetic postcode, and shows the answer o
 |---|---|
 | PHP | 8.1 or later |
 | HTTP, for the client | a PSR-18 client and a PSR-17 request factory |
-| Gatepost spec | 0.2.0 |
+| Gatepost spec | 0.3.0 |
 
 ## Docs
 

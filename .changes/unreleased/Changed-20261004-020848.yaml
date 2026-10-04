@@ -1,0 +1,3 @@
+kind: Changed
+body: Implement spec 0.3.0. It adds the postcode field and its messages, and results stay the same.
+time: 2026-10-04T02:08:48.403352+01:00

@@ -125,7 +125,7 @@ final class ParseResult
 
 final class Postcode
 {
-    public const SPEC_VERSION = '0.2.0';
+    public const SPEC_VERSION = '0.3.0';
     public readonly string $compact;
     public readonly string $canonical;
     public readonly string $display;
